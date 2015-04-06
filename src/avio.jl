@@ -23,7 +23,7 @@ end
 # An audio-visual input stream/file
 type AVInput{I}
     io::I
-    apFormatContext::Vector{Ptr{AVFormatContext}}
+    format_context::FormatContext
     apAVIOContext::Vector{Ptr{AVIOContext}}
     avio_ctx_buffer_size::Uint
     aPacket::Vector{AVPacket}           # Reusable packet
@@ -129,7 +129,7 @@ show(io::IO, vr::VideoReader) = print(io, "VideoReader(...)")
 
 # Pump input for data
 function pump(c::AVInput)
-    pFormatContext = c.apFormatContext[1]
+    pFormatContext = *(c.format_context)
 
     while true
         !c.isopen && break
@@ -167,7 +167,6 @@ end
 
 const read_packet = cfunction(_read_packet, Cint, (Ptr{AVInput}, Ptr{UInt8}, Cint))
 
-
 function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
 
     !isreadable(io) && error("IO not readable")
@@ -175,8 +174,8 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
     # These allow control over how much of the stream to consume when
     # determining the stream type
     # TODO: Change these defaults if necessary, or allow user to set
-    #av_opt_set(avin.apFormatContext[1], "probesize", "100000000", 0)
-    #av_opt_set(avin.apFormatContext[1], "analyzeduration", "1000000", 0)
+    #av_opt_set(*(avin.format_context), "probesize", "100000000", 0)
+    #av_opt_set(*(avin.format_context), "analyzeduration", "1000000", 0)
 
     # Allocate the io buffer used by AVIOContext
     # Must be done with av_malloc, because it could be reallocated
@@ -194,10 +193,10 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
     end
 
     # pFormatContext->pb = pAVIOContext
-    av_setfield(avin.apFormatContext[1], :pb, avin.apAVIOContext[1])
+    av_setfield(*(avin.format_context), :pb, avin.apAVIOContext[1])
 
     # "Open" the input
-    if avformat_open_input(avin.apFormatContext, C_NULL, input_format, C_NULL) != 0
+    if avformat_open_input(avin.format_context, C_NULL, input_format, C_NULL) != 0
         error("Unable to open input")
     end
 
@@ -205,7 +204,7 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
 end
 
 function open_avinput(avin::AVInput, source::String, input_format=C_NULL)
-    if avformat_open_input(avin.apFormatContext,
+    if avformat_open_input(avin.format_context,
                            source,
                            input_format,
                            C_NULL)    != 0
@@ -222,7 +221,7 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
     av_log_set_level(AVUtil.AV_LOG_ERROR)
 
     aPacket = [AVPacket()]
-    apFormatContext = Ptr{AVFormatContext}[avformat_alloc_context()]
+    format_context = FormatContext()
     apAVIOContext = Ptr{AVIOContext}[C_NULL]
 
     # Allocate this object (needed to pass into AVIOContext in open_avinput)
@@ -237,12 +236,12 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
     avin.isopen = true
 
     # Get the stream information
-    if avformat_find_stream_info(avin.apFormatContext[1], C_NULL) < 0
+    if avformat_find_stream_info(*(avin.format_context), C_NULL) < 0
         error("Unable to find stream information")
     end
 
     # Load streams, codec_contexts
-    formatContext = unsafe_load(avin.apFormatContext[1]);
+    formatContext = unsafe_load(*(avin.format_context));
 
     for i = 1:formatContext.nb_streams
         pStream = unsafe_load(formatContext.streams,i)
@@ -569,11 +568,11 @@ function close(avin::AVInput)
     # Fix for segmentation fault issue #44
     empty!(avin.listening)
 
-    Base.sigatomic_begin()
-    if avin.apFormatContext[1] != C_NULL
-        avformat_close_input(avin.apFormatContext)
-    end
-    Base.sigatomic_end()
+    # Base.sigatomic_begin()
+    # if *(avin.format_context) != C_NULL
+    #     avformat_close_input(avin.format_context)
+    # end
+    # Base.sigatomic_end()
 
     Base.sigatomic_begin()
     if avin.apAVIOContext[1] != C_NULL

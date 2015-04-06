@@ -102,7 +102,7 @@ function check_use_header(top_h, hpath)
   #ignore_header[b] = true
   hbase = av_hpath
   for d in hbase
-      beginswith(hpath, d) && return true
+      startswith(hpath, d) && return true
   end
   return false
 end
@@ -171,7 +171,7 @@ function rewrite_struct(e::Expr)
     new_vars = []
     for arg in vars.args
         @match arg begin
-            Expr(:(::), [varname, vartype], _), if beginswith(string(vartype), "Array") end => 
+            Expr(:(::), [varname, vartype], _), if startswith(string(vartype), "Array") end => 
                 begin
                     @match string(vartype) r"Array_([0-9]+)_(.*)"(size_str, type_str)
                     size = int(size_str)
@@ -232,7 +232,7 @@ function rewrite(buf::Array)
     buf = Any[rewrite_fn(e) for e in buf]
     exports = [string(extract_name(e)) for e in filter(x->isa(x, Expr), buf)]
     have_zero = "zero" in exports
-    filter!(x -> x!="" && x!="zero" && !beginswith(x,"FF_"), exports)
+    filter!(x -> x!="" && x!="zero" && !startswith(x,"FF_"), exports)
     export_string = "export\n" * join(["    $name" for name in exports], ",\n")*"\n\n"
     header = have_zero ? ["import Base.zero","\n",export_string] : [export_string]
     splice!(buf, 1:0, header)
