@@ -551,16 +551,10 @@ end
 eof(r::VideoReader) = eof(r.avin)
 
 Base.close(r::VideoReader) = close(r.avin)
-function _close(r::VideoReader)
-    Base.sigatomic_begin()
-    avcodec_close(r.pVideoCodecContext)
-    Base.sigatomic_end()
-end
+_close(r::VideoReader) = avcodec_close(r.pVideoCodecContext)
 
 # Free AVIOContext object when done
 function Base.close(avin::AVInput)
-
-    # Test and set isopen
     Base.sigatomic_begin()
     isopen = avin.isopen
     avin.isopen = false
