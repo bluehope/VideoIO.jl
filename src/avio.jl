@@ -1,6 +1,7 @@
 # AVIO
 
-import Base: read, read!, show, close, eof, isopen
+#import Base: read, read!, show, close, eof, isopen
+import Base: read, read!, show, eof, isopen
 
 export read, read!, pump, openvideo, opencamera, playvideo, viewcam, play
 
@@ -512,11 +513,11 @@ end
 
 eof(r::VideoReader) = eof(r.avin)
 
-close(r::VideoReader) = close(r.avin)
+Base.close(r::VideoReader) = close(r.avin)
 _close(r::VideoReader) = avcodec_close(r.pVideoCodecContext)
 
 # Free AVIOContext object when done
-function close(avin::AVInput)
+function Base.close(avin::AVInput)
     Base.sigatomic_begin()
     isopen = avin.isopen
     avin.isopen = false
@@ -531,11 +532,7 @@ function close(avin::AVInput)
     # Fix for segmentation fault issue #44
     empty!(avin.listening)
 
-    # Base.sigatomic_begin()
-    # if *(avin.format_context) != C_NULL
-    #     avformat_close_input(avin.format_context)
-    # end
-    # Base.sigatomic_end()
+    free(avin.format_context)
 
     Base.sigatomic_begin()
     if avin.apAVIOContext[1] != C_NULL
