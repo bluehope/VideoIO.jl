@@ -204,7 +204,7 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
 end
 
 function open_avinput(avin::AVInput, source::String, input_format=C_NULL)
-    if avformat_open_input(avin.format_context,
+    if avformat_open_input(avin.format_context.pptr,
                            source,
                            input_format,
                            C_NULL)    != 0
@@ -229,7 +229,8 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
                       aPacket, [StreamInfo[] for i=1:6]..., Set(Int[]), StreamContext[], false)
 
     # Make sure we deallocate everything on exit
-    finalizer(avin, close)
+    # TODO: this currently crashes!
+    #finalizer(avin, close)
 
     # Set up the format context and open the input, based on the type of source
     open_avinput(avin, source, input_format)
@@ -550,10 +551,16 @@ end
 eof(r::VideoReader) = eof(r.avin)
 
 Base.close(r::VideoReader) = close(r.avin)
-_close(r::VideoReader) = avcodec_close(r.pVideoCodecContext)
+function _close(r::VideoReader)
+    Base.sigatomic_begin()
+    avcodec_close(r.pVideoCodecContext)
+    Base.sigatomic_end()
+end
 
 # Free AVIOContext object when done
 function Base.close(avin::AVInput)
+
+    # Test and set isopen
     Base.sigatomic_begin()
     isopen = avin.isopen
     avin.isopen = false
@@ -564,7 +571,6 @@ function Base.close(avin::AVInput)
     for i in avin.listening
         _close(avin.stream_contexts[i+1])
     end
-
     # Fix for segmentation fault issue #44
     empty!(avin.listening)
 
