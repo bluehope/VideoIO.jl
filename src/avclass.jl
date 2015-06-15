@@ -23,8 +23,7 @@ function CBuffer(sz::Integer)
     ptr = av_malloc(sz)
     ptr == C_NULL && throw(ErrorException("Unable to allocate buffer (out of memory"))
 
-    pptr = [ptr]
-    cb = CBuffer(pptr)
+    cb = CBuffer([ptr])
     finalizer(cb, free)
     cb
 end
@@ -61,13 +60,28 @@ end
 
 IOContext() = IOContext(Ptr{AVIOContext}[C_NULL])
 
-function IOContext(buffer::Ptr, bufsize::Integer, write_flag::Integer, opaque_ptr::Ptr, read_packet, write_packet, seek)
+function IOContext(bufsize::Integer, write_flag::Integer, opaque_ptr::Ptr, read_packet, write_packet, seek)
+    buffer = av_malloc(bufsize)
+    buffer == C_NULL && throw(ErrorException("Unable to allocate buffer (out of memory)"))
+
     ptr = avio_alloc_context(buffer, bufsize, write_flag, opaque_ptr, read_packet, write_packet, seek)
-    ptr == C_NULL && throw(ErrorException("Unable to allocate IOContext (out of memory"))
+    if ptr == C_NULL
+        pBuffer = [buffer]
+        av_freep(pBuffer)
+        throw(ErrorException("Unable to allocate IOContext (out of memory"))
+    end
 
     ioc = IOContext([ptr])
     finalizer(ioc, free)
     ioc
+end
+
+function free(c::IOContext)
+    Base.sigatomic_begin()
+    pBuffer = [c.buffer]
+    av_freep(pBuffer)
+    av_freep(c)
+    Base.sigatomic_end()
 end
 
 #type AVStream
