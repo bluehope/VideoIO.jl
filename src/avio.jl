@@ -129,7 +129,7 @@ show(io::IO, vr::VideoReader) = print(io, "VideoReader(...)")
 
 # Pump input for data
 function pump(c::AVInput)
-    pFormatContext = *(c.format_context)
+    pFormatContext = c.format_context[]
 
     while true
         !c.isopen && break
@@ -174,8 +174,8 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
     # These allow control over how much of the stream to consume when
     # determining the stream type
     # TODO: Change these defaults if necessary, or allow user to set
-    #av_opt_set(*(avin.format_context), "probesize", "100000000", 0)
-    #av_opt_set(*(avin.format_context), "analyzeduration", "1000000", 0)
+    #av_opt_set(avin.format_context[], "probesize", "100000000", 0)
+    #av_opt_set(avin.format_context[], "analyzeduration", "1000000", 0)
 
     # Allocate the io buffer used by AVIOContext
     # Must be done with av_malloc, because it could be reallocated
@@ -193,7 +193,7 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
     end
 
     # pFormatContext->pb = pAVIOContext
-    av_setfield(*(avin.format_context), :pb, avin.apAVIOContext[1])
+    av_setfield(avin.format_context[], :pb, avin.apAVIOContext[1])
 
     # "Open" the input
     if avformat_open_input(avin.format_context, C_NULL, input_format, C_NULL) != 0
@@ -237,12 +237,12 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
     avin.isopen = true
 
     # Get the stream information
-    if avformat_find_stream_info(*(avin.format_context), C_NULL) < 0
+    if avformat_find_stream_info(avin.format_context[], C_NULL) < 0
         error("Unable to find stream information")
     end
 
     # Load streams, codec_contexts
-    formatContext = unsafe_load(*(avin.format_context));
+    formatContext = unsafe_load(avin.format_context[]);
 
     for i = 1:formatContext.nb_streams
         pStream = unsafe_load(formatContext.streams,i)
