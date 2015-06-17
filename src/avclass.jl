@@ -81,10 +81,10 @@ end
 
 function free(c::IOContext)
     if is_allocated(c)
-        cbuf = CBuffer([av_getfield(c, :buffer)])
+        cbuf = CBuffer([av_getfield(c[], :buffer)])
         free(cbuf)
     end
-    
+
     Base.sigatomic_begin()
     av_freep(c)
     Base.sigatomic_end()
