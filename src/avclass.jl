@@ -2,14 +2,15 @@
 abstract PPtr{T}
 abstract AVClass{T} <: PPtr{T}
 
-getindex(c::PPtr) = c.pptr[1]
-setindex!(c::PPtr, x) = (c.pptr[1] = x)
-Base.convert{T}(::Type{Ptr{Ptr{T}}}, c::PPtr{T}) = pointer(c.pptr)
-Base.convert{T}(::Type{Ptr{T}}, c::PPtr{T}) = c[]
+Base.getindex(c::PPtr) = c.pptr[1]
+Base.setindex!(c::PPtr, x) = (c.pptr[1] = x)
+Base.convert{T}(::Type{Ptr{Ptr{T}}}, c::PPtr) = convert(Ptr{Ptr{T}}, c.pptr)
+Base.convert(::Type{Ptr{Void}}, c::PPtr) = convert(Ptr{Void}, c.pptr) # pointer(c.pptr)
 
 function free(c::PPtr)
     Base.sigatomic_begin()
     av_freep(c)
+    c[] = C_NULL
     Base.sigatomic_end()
 end
 
@@ -18,6 +19,8 @@ is_allocated(p::PPtr) = (p[] != C_NULL)
 type CBuffer <: PPtr{Void}
     pptr::Vector{Ptr{Void}}
 end
+
+CBuffer() = CBuffer([C_NULL])
 
 function CBuffer(sz::Integer)
     ptr = av_malloc(sz)
@@ -56,31 +59,30 @@ end
 
 type IOContext <: AVClass{AVIOContext}
     pptr::Vector{Ptr{AVIOContext}}
+    buffer::CBuffer
 end
 
-IOContext() = IOContext(Ptr{AVIOContext}[C_NULL])
+IOContext() = IOContext(Ptr{AVIOContext}[C_NULL], CBuffer())
 
 function IOContext(bufsize::Integer, write_flag::Integer, opaque_ptr::Ptr, read_packet, write_packet, seek)
-    buffer = av_malloc(bufsize)
-    buffer == C_NULL && throw(ErrorException("Unable to allocate buffer (out of memory)"))
+    buffer = CBuffer(bufsize)
 
-    ptr = avio_alloc_context(buffer, bufsize, write_flag, opaque_ptr, read_packet, write_packet, seek)
+    ptr = avio_alloc_context(buffer[], bufsize, write_flag, opaque_ptr, read_packet, write_packet, seek)
     if ptr == C_NULL
-        pBuffer = [buffer]
-        av_freep(pBuffer)
+        free(buffer)
         throw(ErrorException("Unable to allocate IOContext (out of memory"))
     end
 
-    ioc = IOContext([ptr])
+    ioc = IOContext([ptr], buffer)
     finalizer(ioc, free)
     ioc
 end
 
 function free(c::IOContext)
+    #free(c.buffer)
     Base.sigatomic_begin()
-    pBuffer = [c.buffer]
-    av_freep(pBuffer)
     av_freep(c)
+    c[] = C_NULL
     Base.sigatomic_end()
 end
 
