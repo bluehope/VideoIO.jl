@@ -178,13 +178,10 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
     #av_opt_set(avin.format_context[], "probesize", "100000000", 0)
     #av_opt_set(avin.format_context[], "analyzeduration", "1000000", 0)
 
-    # Allocate the io buffer used by AVIOContext
-    # Must be done with av_malloc, because it could be reallocated
     avin.iocontext = IOContext(avin.avio_ctx_buffer_size, 0, pointer_from_objref(avin),
                                read_packet, C_NULL, C_NULL)
 
     # pFormatContext->pb = pAVIOContext
-    
     av_setfield!(avin.format_context[], :pb, avin.iocontext[])
 
     # "Open" the input
