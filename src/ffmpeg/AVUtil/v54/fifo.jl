@@ -22,7 +22,7 @@ function av_fifo_alloc(size::Integer)
     ccall((:av_fifo_alloc,libavutil),Ptr{AVFifoBuffer},(Uint32,),size)
 end
 
-function av_fifo_alloc_array(nmemb::Csize_t,size::Csize_t)
+function av_fifo_alloc_array(nmemb::Integer,size::Integer)
     ccall((:av_fifo_alloc_array,libavutil),Ptr{AVFifoBuffer},(Csize_t,Csize_t),nmemb,size)
 end
 

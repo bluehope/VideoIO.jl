@@ -51,11 +51,11 @@ function av_output_video_device_next(d)
     ccall((:av_output_video_device_next,libavdevice),Ptr{AVOutputFormat},(Ptr{AVOutputFormat},),d)
 end
 
-function avdevice_app_to_dev_control_message(s,_type::AVAppToDevMessageType,data,data_size::Csize_t)
+function avdevice_app_to_dev_control_message(s,_type::AVAppToDevMessageType,data,data_size::Integer)
     ccall((:avdevice_app_to_dev_control_message,libavdevice),Cint,(Ptr{AVFormatContext},AVAppToDevMessageType,Ptr{Void},Csize_t),s,_type,data,data_size)
 end
 
-function avdevice_dev_to_app_control_message(s,_type::AVDevToAppMessageType,data,data_size::Csize_t)
+function avdevice_dev_to_app_control_message(s,_type::AVDevToAppMessageType,data,data_size::Integer)
     ccall((:avdevice_dev_to_app_control_message,libavdevice),Cint,(Ptr{AVFormatContext},AVDevToAppMessageType,Ptr{Void},Csize_t),s,_type,data,data_size)
 end
 

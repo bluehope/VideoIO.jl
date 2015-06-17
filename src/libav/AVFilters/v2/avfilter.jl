@@ -254,7 +254,7 @@ function avfilter_insert_filter(link,filt,filt_srcpad_idx::Integer,filt_dstpad_i
     ccall((:avfilter_insert_filter,libavfilter),Cint,(Ptr{AVFilterLink},Ptr{AVFilterContext},Uint32,Uint32),link,filt,filt_srcpad_idx,filt_dstpad_idx)
 end
 
-function avfilter_insert_pad(idx::Integer,count,padidx_off::Csize_t,pads,links,newpad)
+function avfilter_insert_pad(idx::Integer,count,padidx_off::Integer,pads,links,newpad)
     ccall((:avfilter_insert_pad,libavfilter),Void,(Uint32,Ptr{Uint32},Csize_t,Ptr{Ptr{AVFilterPad}},Ptr{Ptr{Ptr{AVFilterLink}}},Ptr{AVFilterPad}),idx,count,padidx_off,pads,links,newpad)
 end
 

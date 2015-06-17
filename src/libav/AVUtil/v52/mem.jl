@@ -14,15 +14,15 @@ export
     av_memcpy_backptr
 
 
-function av_malloc(size::Csize_t)
+function av_malloc(size::Integer)
     ccall((:av_malloc,libavutil),Ptr{Void},(Csize_t,),size)
 end
 
-function av_malloc_array(nmemb::Csize_t,size::Csize_t)
+function av_malloc_array(nmemb::Integer,size::Integer)
     ccall((:av_malloc_array,libavutil),Ptr{Void},(Csize_t,Csize_t),nmemb,size)
 end
 
-function av_realloc(ptr,size::Csize_t)
+function av_realloc(ptr,size::Integer)
     ccall((:av_realloc,libavutil),Ptr{Void},(Ptr{Void},Csize_t),ptr,size)
 end
 
@@ -30,11 +30,11 @@ function av_free(ptr)
     ccall((:av_free,libavutil),Void,(Ptr{Void},),ptr)
 end
 
-function av_mallocz(size::Csize_t)
+function av_mallocz(size::Integer)
     ccall((:av_mallocz,libavutil),Ptr{Void},(Csize_t,),size)
 end
 
-function av_mallocz_array(nmemb::Csize_t,size::Csize_t)
+function av_mallocz_array(nmemb::Integer,size::Integer)
     ccall((:av_mallocz_array,libavutil),Ptr{Void},(Csize_t,Csize_t),nmemb,size)
 end
 
