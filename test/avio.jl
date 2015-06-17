@@ -2,7 +2,6 @@ using Base.Test
 using Compat
 using Images, FixedPointNumbers
 import VideoIO
-using Compat
 
 testdir = joinpath(Pkg.dir("VideoIO"), "test")
 videodir = joinpath(Pkg.dir("VideoIO"), "videos")

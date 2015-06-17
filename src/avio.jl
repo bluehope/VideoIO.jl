@@ -183,7 +183,8 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
                                read_packet, C_NULL, C_NULL)
 
     # pFormatContext->pb = pAVIOContext
-    av_setfield(avin.format_context[], :pb, avin.iocontext[])
+    
+    av_setfield!(avin.format_context[], :pb, avin.iocontext[])
 
     # "Open" the input
     if avformat_open_input(avin.format_context, C_NULL, input_format, C_NULL) != 0

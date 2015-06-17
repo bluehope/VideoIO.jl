@@ -4,13 +4,17 @@ abstract AVClass{T} <: PPtr{T}
 
 Base.getindex(c::PPtr) = c.pptr[1]
 Base.setindex!(c::PPtr, x) = (c.pptr[1] = x)
-Base.convert{T}(::Type{Ptr{Ptr{T}}}, c::PPtr) = convert(Ptr{Ptr{T}}, c.pptr)
-Base.convert(::Type{Ptr{Void}}, c::PPtr) = convert(Ptr{Void}, c.pptr) # pointer(c.pptr)
+if VERSION < v"0.4.0"
+    Base.convert{T}(::Type{Ptr{Ptr{T}}}, c::PPtr) = Base.convert(Ptr{Ptr{T}}, pointer(c.pptr))
+    Base.convert(::Type{Ptr{Void}}, c::PPtr) = Base.convert(Ptr{Void}, pointer(c.pptr))
+else
+    Base.unsafe_convert{T}(::Type{Ptr{Ptr{T}}}, c::PPtr) = Base.unsafe_convert(Ptr{Ptr{T}}, pointer(c.pptr))
+    Base.unsafe_convert(::Type{Ptr{Void}}, c::PPtr) = Base.unsafe_convert(Ptr{Void}, pointer(c.pptr))
+end
 
 function free(c::PPtr)
     Base.sigatomic_begin()
     av_freep(c)
-    c[] = C_NULL
     Base.sigatomic_end()
 end
 
@@ -48,10 +52,7 @@ end
 
 function free(c::FormatContext)
     Base.sigatomic_begin()
-    if is_allocated(c)
-        avformat_close_input(c.pptr)
-        c[] = C_NULL
-    end
+    is_allocated(c) && avformat_close_input(c.pptr)
     Base.sigatomic_end()
 end
 
@@ -59,30 +60,33 @@ end
 
 type IOContext <: AVClass{AVIOContext}
     pptr::Vector{Ptr{AVIOContext}}
-    buffer::CBuffer
 end
 
-IOContext() = IOContext(Ptr{AVIOContext}[C_NULL], CBuffer())
+IOContext() = IOContext(Ptr{AVIOContext}[C_NULL])
 
 function IOContext(bufsize::Integer, write_flag::Integer, opaque_ptr::Ptr, read_packet, write_packet, seek)
-    buffer = CBuffer(bufsize)
+    pBuffer = av_malloc(bufsize)
 
-    ptr = avio_alloc_context(buffer[], bufsize, write_flag, opaque_ptr, read_packet, write_packet, seek)
+    ptr = avio_alloc_context(pBuffer, bufsize, write_flag, opaque_ptr, read_packet, write_packet, seek)
     if ptr == C_NULL
-        free(buffer)
+        cbuf = CBuffer([pBuffer])
+        free(cbuf)
         throw(ErrorException("Unable to allocate IOContext (out of memory"))
     end
 
-    ioc = IOContext([ptr], buffer)
+    ioc = IOContext([ptr])
     finalizer(ioc, free)
     ioc
 end
 
 function free(c::IOContext)
-    #free(c.buffer)
+    if is_allocated(c)
+        cbuf = CBuffer([av_getfield(c, :buffer)])
+        free(cbuf)
+    end
+    
     Base.sigatomic_begin()
     av_freep(c)
-    c[] = C_NULL
     Base.sigatomic_end()
 end
 
