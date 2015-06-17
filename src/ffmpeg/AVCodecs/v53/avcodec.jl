@@ -214,7 +214,7 @@ function avcodec_pix_fmt_to_codec_tag(pix_fmt::PixelFormat)
     ccall((:avcodec_pix_fmt_to_codec_tag,libavcodec),Uint32,(PixelFormat,),pix_fmt)
 end
 
-function av_get_codec_tag_string(buf,buf_size::Csize_t,codec_tag::Integer)
+function av_get_codec_tag_string(buf,buf_size::Integer,codec_tag::Integer)
     ccall((:av_get_codec_tag_string,libavcodec),Csize_t,(Ptr{Uint8},Csize_t,Uint32),buf,buf_size,codec_tag)
 end
 
@@ -478,11 +478,11 @@ function av_bitstream_filter_next(f)
     ccall((:av_bitstream_filter_next,libavcodec),Ptr{AVBitStreamFilter},(Ptr{AVBitStreamFilter},),f)
 end
 
-function av_fast_realloc(ptr,size,min_size::Csize_t)
+function av_fast_realloc(ptr,size,min_size::Integer)
     ccall((:av_fast_realloc,libavcodec),Ptr{Void},(Ptr{Void},Ptr{Uint32},Csize_t),ptr,size,min_size)
 end
 
-function av_fast_malloc(ptr,size,min_size::Csize_t)
+function av_fast_malloc(ptr,size,min_size::Integer)
     ccall((:av_fast_malloc,libavcodec),Void,(Ptr{Void},Ptr{Uint32},Csize_t),ptr,size,min_size)
 end
 

@@ -226,6 +226,6 @@ function avio_seek_time(h,stream_index::Integer,timestamp::Int64,flags::Integer)
     ccall((:avio_seek_time,libavformat),Int64,(Ptr{AVIOContext},Cint,Int64,Cint),h,stream_index,timestamp,flags)
 end
 
-function avio_read_to_bprint(h,pb,max_size::Csize_t)
+function avio_read_to_bprint(h,pb,max_size::Integer)
     ccall((:avio_read_to_bprint,libavformat),Cint,(Ptr{AVIOContext},Ptr{AVBPrint},Csize_t),h,pb,max_size)
 end

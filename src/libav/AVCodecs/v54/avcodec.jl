@@ -406,7 +406,7 @@ function avcodec_set_dimensions(s,width::Integer,height::Integer)
     ccall((:avcodec_set_dimensions,libavcodec),Void,(Ptr{AVCodecContext},Cint,Cint),s,width,height)
 end
 
-function av_get_codec_tag_string(buf,buf_size::Csize_t,codec_tag::Integer)
+function av_get_codec_tag_string(buf,buf_size::Integer,codec_tag::Integer)
     ccall((:av_get_codec_tag_string,libavcodec),Csize_t,(Ptr{Uint8},Csize_t,Uint32),buf,buf_size,codec_tag)
 end
 
@@ -470,15 +470,15 @@ function av_bitstream_filter_next(f)
     ccall((:av_bitstream_filter_next,libavcodec),Ptr{AVBitStreamFilter},(Ptr{AVBitStreamFilter},),f)
 end
 
-function av_fast_realloc(ptr,size,min_size::Csize_t)
+function av_fast_realloc(ptr,size,min_size::Integer)
     ccall((:av_fast_realloc,libavcodec),Ptr{Void},(Ptr{Void},Ptr{Uint32},Csize_t),ptr,size,min_size)
 end
 
-function av_fast_malloc(ptr,size,min_size::Csize_t)
+function av_fast_malloc(ptr,size,min_size::Integer)
     ccall((:av_fast_malloc,libavcodec),Void,(Ptr{Void},Ptr{Uint32},Csize_t),ptr,size,min_size)
 end
 
-function av_fast_padded_malloc(ptr,size,min_size::Csize_t)
+function av_fast_padded_malloc(ptr,size,min_size::Integer)
     ccall((:av_fast_padded_malloc,libavcodec),Void,(Ptr{Void},Ptr{Uint32},Csize_t),ptr,size,min_size)
 end
 
