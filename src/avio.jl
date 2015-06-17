@@ -24,7 +24,7 @@ end
 type AVInput{I}
     io::I
     format_context::FormatContext
-    apAVIOContext::Vector{Ptr{AVIOContext}}
+    iocontext::IOContext
     avio_ctx_buffer_size::Uint
     aPacket::Vector{AVPacket}           # Reusable packet
 
@@ -179,21 +179,11 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
 
     # Allocate the io buffer used by AVIOContext
     # Must be done with av_malloc, because it could be reallocated
-    if (avio_ctx_buffer = av_malloc(avin.avio_ctx_buffer_size)) == C_NULL
-        error("unable to allocate AVIOContext buffer (out of memory)")
-    end
-
-    # Allocate AVIOContext
-    if (avin.apAVIOContext[1] = avio_alloc_context(avio_ctx_buffer, avin.avio_ctx_buffer_size,
-                                                   0, pointer_from_objref(avin),
-                                                   read_packet, C_NULL, C_NULL)) == C_NULL
-        abuffer = [avio_ctx_buffer]
-        av_freep(abuffer)
-        error("Unable to allocate AVIOContext (out of memory)")
-    end
+    avin.iocontext = IOContext(avin.avio_ctx_buffer_size, 0, pointer_from_objref(avin),
+                               read_packet, C_NULL, C_NULL)
 
     # pFormatContext->pb = pAVIOContext
-    av_setfield(avin.format_context[], :pb, avin.apAVIOContext[1])
+    av_setfield(avin.format_context[], :pb, avin.iocontext[])
 
     # "Open" the input
     if avformat_open_input(avin.format_context, C_NULL, input_format, C_NULL) != 0
@@ -222,7 +212,7 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
 
     aPacket = [AVPacket()]
     format_context = FormatContext()
-    apAVIOContext = Ptr{AVIOContext}[C_NULL]
+    iocontext = IOContext()
 
     # Allocate this object (needed to pass into AVIOContext in open_avinput)
     avin = AVInput{T}(source, apFormatContext, apAVIOContext, avio_ctx_buffer_size,
@@ -574,14 +564,7 @@ function Base.close(avin::AVInput)
     empty!(avin.listening)
 
     free(avin.format_context)
-
-    Base.sigatomic_begin()
-    if avin.apAVIOContext[1] != C_NULL
-        p = av_pointer_to_field(avin.apAVIOContext[1], :buffer)
-        p != C_NULL && av_freep(p)
-        av_freep(avin.apAVIOContext)
-    end
-    Base.sigatomic_end()
+    free(avin.iocontext)
 end
 
 
