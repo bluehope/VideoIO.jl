@@ -2073,7 +2073,7 @@ immutable AVHWAccel
     priv_data_size::Cint
 end
 
-immutable AVCodecContext
+immutable AVCodecContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     log_level_offset::Cint
     codec_type::AVMediaType

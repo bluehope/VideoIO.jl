@@ -1079,7 +1079,7 @@ immutable AVOptionRanges
 end
 
 # begin enum AVOptionType
-typealias AVOptionType Uint32
+typealias AVOptionType @compat UInt32
 const AV_OPT_TYPE_FLAGS = @compat UInt32(0)
 const AV_OPT_TYPE_INT = @compat UInt32(1)
 const AV_OPT_TYPE_INT64 = @compat UInt32(2)
@@ -1118,6 +1118,8 @@ immutable AVOption
     flags::Cint
     unit::Ptr{Uint8}
 end
+
+abstract _AVClass
 
 immutable AVClass
     class_name::Ptr{Uint8}
@@ -1480,7 +1482,7 @@ const AV_PIX_FMT_XVMC = AV_PIX_FMT_XVMC_MPEG2_IDCT
 const AV_PIX_FMT_Y400A = AV_PIX_FMT_GRAY8A
 const AV_PIX_FMT_GBR24P = AV_PIX_FMT_GBRP
 
-macro AV_PIX_FMT_NE(be, le) 
+macro AV_PIX_FMT_NE(be, le)
     symbol("AV_PIX_FMT_$le")
 end
 

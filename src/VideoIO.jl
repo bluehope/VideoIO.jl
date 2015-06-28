@@ -1,6 +1,7 @@
 module VideoIO
 
 using Compat
+VERSION < v"0.4-" && using Docile
 
 include("init.jl")
 

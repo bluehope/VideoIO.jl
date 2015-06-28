@@ -165,7 +165,7 @@ end
 typealias AVFilterInternal Void
 typealias AVFilterGraphInternal Void
 
-immutable AVFilterGraph
+immutable AVFilterGraph <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     filter_count_unused::Uint32
     filters::Ptr{Ptr{AVFilterContext}}

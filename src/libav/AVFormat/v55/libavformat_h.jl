@@ -99,7 +99,7 @@ immutable AVIOInterruptCB
     opaque::Ptr{Void}
 end
 
-immutable AVIOContext
+immutable AVIOContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     buffer::Ptr{Cuchar}
     buffer_size::Cint
@@ -1359,7 +1359,7 @@ end
 
 typealias AVFormatInternal Void
 
-immutable AVFormatContext
+immutable AVFormatContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     iformat::Ptr{AVInputFormat}
     oformat::Ptr{AVOutputFormat}

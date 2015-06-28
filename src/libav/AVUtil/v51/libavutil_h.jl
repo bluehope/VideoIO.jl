@@ -450,6 +450,8 @@ immutable AVOption
     unit::Ptr{Uint8}
 end
 
+abstract _AVClass
+
 immutable AVClass
     class_name::Ptr{Uint8}
     item_name::Ptr{Void}

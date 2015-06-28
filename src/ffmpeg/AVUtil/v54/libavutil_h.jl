@@ -1158,6 +1158,8 @@ immutable AVOption
     unit::Ptr{Uint8}
 end
 
+abstract _AVClass
+
 immutable AVClass
     class_name::Ptr{Uint8}
     item_name::Ptr{Void}
@@ -1523,7 +1525,7 @@ const PIX_FMT_NB = @compat Int32(317)
 const AV_PIX_FMT_XVMC = AV_PIX_FMT_XVMC_MPEG2_IDCT
 const AV_PIX_FMT_GBR24P = AV_PIX_FMT_GBRP
 
-macro AV_PIX_FMT_NE (be, le) 
+macro AV_PIX_FMT_NE (be, le)
     symbol("AV_PIX_FMT_"*string(le))
 end
 
