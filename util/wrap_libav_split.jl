@@ -94,7 +94,7 @@ function wrap_library(library, path, outdir = ".")
     return
 end
 
- 
+
 # called to determine if cursor should be included
 function check_use_header(top_h, hpath)
   b = basename(top_h)
@@ -138,7 +138,7 @@ function rewrite_fn(e, fncall, body, use_strpack=false)
             Expr(:(::), [sym, Expr(:curly, [:Ptr, _], _)], _) => push!(parms, sym)
 
             # Type all integers as Integer
-            Expr(:(::), [sym, (:Uint32 || :Cuint || :Int32 || :Cint)], _) => (sym; push!(parms, :($sym::Integer)))
+            Expr(:(::), [sym, (:Uint32 || :UInt32 || :Cuint || :Int32 || :Cint || :Csize_t)], _) => (sym; push!(parms, :($sym::Integer)))
 
             # Everything else is unchanged
             _ => push!(parms, call_arg)
@@ -171,7 +171,7 @@ function rewrite_struct(e::Expr)
     new_vars = []
     for arg in vars.args
         @match arg begin
-            Expr(:(::), [varname, vartype], _), if startswith(string(vartype), "Array") end => 
+            Expr(:(::), [varname, vartype], _), if startswith(string(vartype), "Array") end =>
                 begin
                     @match string(vartype) r"Array_([0-9]+)_(.*)"(size_str, type_str)
                     size = int(size_str)
