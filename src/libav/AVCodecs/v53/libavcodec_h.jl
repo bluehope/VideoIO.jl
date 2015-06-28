@@ -1834,7 +1834,7 @@ const AV_FIELD_TB = @compat UInt32(4)
 const AV_FIELD_BT = @compat UInt32(5)
 # end enum AVFieldOrder
 
-immutable AVCodecContext
+immutable AVCodecContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     bit_rate::Cint
     bit_rate_tolerance::Cint

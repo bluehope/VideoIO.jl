@@ -69,7 +69,7 @@ const AV_DEV_TO_APP_MUTE_STATE_CHANGED = @compat UInt32(1129141588)
 const AV_DEV_TO_APP_VOLUME_LEVEL_CHANGED = @compat UInt32(1129729868)
 # end enum AVDevToAppMessageType
 
-immutable AVDeviceCapabilitiesQuery
+immutable AVDeviceCapabilitiesQuery <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     device_context::Ptr{AVFormatContext}
     codec::AVCodecID

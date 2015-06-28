@@ -162,7 +162,7 @@ immutable URLProtocol
     url_check::Ptr{Void}
 end
 
-immutable URLContext
+immutable URLContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     prot::Ptr{URLProtocol}
     flags::Cint
@@ -1426,7 +1426,7 @@ immutable AVChapter
     metadata::Ptr{AVDictionary}
 end
 
-immutable AVFormatContext
+immutable AVFormatContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     iformat::Ptr{AVInputFormat}
     oformat::Ptr{AVOutputFormat}

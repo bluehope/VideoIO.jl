@@ -128,7 +128,7 @@ immutable AVIOInterruptCB
     opaque::Ptr{Void}
 end
 
-immutable AVIOContext
+immutable AVIOContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     buffer::Ptr{Cuchar}
     buffer_size::Cint
@@ -1484,7 +1484,7 @@ const AVFMT_DURATION_FROM_BITRATE = @compat UInt32(2)
 typealias AVFormatInternal Void
 typealias av_format_control_message Ptr{Void}
 
-immutable AVFormatContext
+immutable AVFormatContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     iformat::Ptr{AVInputFormat}
     oformat::Ptr{AVOutputFormat}

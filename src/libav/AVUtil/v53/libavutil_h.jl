@@ -727,6 +727,8 @@ immutable AVOption
     unit::Ptr{Uint8}
 end
 
+abstract _AVClass
+
 immutable AVClass
     class_name::Ptr{Uint8}
     item_name::Ptr{Void}
@@ -1000,7 +1002,7 @@ const PixelFormat = AVPixelFormat
 macro AV_PIX_FMT_NE(be,le)
     symbol("AV_PIX_FMT_"*string(le))
 end
- 
+
 const AV_PIX_FMT_RGB32 = @AV_PIX_FMT_NE(ARGB,BGRA)
 const AV_PIX_FMT_RGB32_1 = @AV_PIX_FMT_NE(RGBA,ABGR)
 const AV_PIX_FMT_BGR32 = @AV_PIX_FMT_NE(ABGR,RGBA)

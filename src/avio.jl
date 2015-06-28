@@ -22,7 +22,7 @@ else
 end
 
 # An audio-visual input stream/file
-type AVInput{I}
+type MediaInput{I}
     io::I
     format_context::FormatContext
     iocontext::IOContext
@@ -43,8 +43,8 @@ type AVInput{I}
 end
 
 
-function show(io::IO, avin::AVInput)
-    println(io, "AVInput(", avin.io, ", ...), with")
+function show(io::IO, avin::MediaInput)
+    println(io, "MediaInput(", avin.io, ", ...), with")
     (len = length(avin.video_info))      > 0 && println(io, "  $len video stream(s)")
     (len = length(avin.audio_info))      > 0 && println(io, "  $len audio stream(s)")
     (len = length(avin.data_info))       > 0 && println(io, "  $len data stream(s)")
@@ -68,11 +68,38 @@ type VideoTranscodeContext
     apTargetLineSizes::Vector{Cint}
 end
 
+function VideoTranscodeContext(input_format = PIX_FORMAT_YUV420P, target_format = PIX_FMT_RGB24;
+                               scale = 1.0, interp = SWS_BILINEAR)
+
+end
+
+
 const TRANSCODE=true
 const NO_TRANSCODE=false
 
+type VideoFrame
+    frame::Vector{AVFrame}
+    buffer::Vector{UInt8}
+    format::Cint
+    width::Cint
+    height::Cint
+end
+
+VideoFrame(format = -1) = VideoFrame([AVFrame()], UInt8[], format, -1, -1)
+
+function VideoFrame(format, width, height)
+    numBytes = avpicture_get_size(format, width, height)
+    buffer = Vector{UInt8}(numBytes)
+
+    frame = [AVFrame()]
+    avpicture_fill(frame, buffer, format, width, height)
+
+    return VideoFrame(frame, buffer, format, width, height)
+end
+
+
 type VideoReader{transcode} <: StreamContext
-    avin::AVInput
+    avin::MediaInput
     stream_info::StreamInfo
 
     stream_index0::Int
@@ -129,7 +156,7 @@ show(io::IO, vr::VideoReader) = print(io, "VideoReader(...)")
 # end
 
 # Pump input for data
-function pump(c::AVInput)
+function pump(c::MediaInput)
     pFormatContext = c.format_context[]
 
     while true
@@ -160,15 +187,15 @@ end
 
 pump(r::StreamContext) = pump(r.avin)
 
-function _read_packet(pavin::Ptr{AVInput}, pbuf::Ptr{UInt8}, buf_size::Cint)
+function _read_packet(pavin::Ptr{MediaInput}, pbuf::Ptr{UInt8}, buf_size::Cint)
     avin = unsafe_pointer_to_objref(pavin)
     out = pointer_to_array(pbuf, (buf_size,))
     convert(Cint, readbytes!(avin.io, out))
 end
 
-const read_packet = cfunction(_read_packet, Cint, (Ptr{AVInput}, Ptr{UInt8}, Cint))
+const read_packet = cfunction(_read_packet, Cint, (Ptr{MediaInput}, Ptr{UInt8}, Cint))
 
-function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
+function _openvideo(avin::MediaInput, io::IO, input_format=C_NULL)
 
     !isreadable(io) && error("IO not readable")
 
@@ -192,7 +219,7 @@ function open_avinput(avin::AVInput, io::IO, input_format=C_NULL)
     nothing
 end
 
-function open_avinput(avin::AVInput, source::String, input_format=C_NULL)
+function _openvideo(avin::MediaInput, source::String, input_format=C_NULL)
     if avformat_open_input(avin.format_context.pptr,
                            source,
                            input_format,
@@ -203,7 +230,7 @@ function open_avinput(avin::AVInput, source::String, input_format=C_NULL)
     nothing
 end
 
-function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_buffer_size=65536)
+function MediaInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_buffer_size=65536)
 
     # Register all codecs and formats
     av_register_all()
@@ -213,8 +240,8 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
     format_context = FormatContext()
     iocontext = IOContext()
 
-    # Allocate this object (needed to pass into AVIOContext in open_avinput)
-    avin = AVInput{T}(source, format_context, iocontext, avio_ctx_buffer_size,
+    # Allocate this object (needed to pass into AVIOContext in _openvideo)
+    avin = MediaInput{T}(source, format_context, iocontext, avio_ctx_buffer_size,
                       aPacket, [StreamInfo[] for i=1:6]..., IntSet(), StreamContext[], false)
 
     # Make sure we deallocate everything on exit
@@ -222,7 +249,7 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
     #finalizer(avin, close)
 
     # Set up the format context and open the input, based on the type of source
-    open_avinput(avin, source, input_format)
+    _openvideo(avin, source, input_format)
     avin.isopen = true
 
     # Get the stream information
@@ -231,10 +258,10 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
     end
 
     # Load streams, codec_contexts
-    formatContext = unsafe_load(avin.format_context[]);
+    avFormatContext = unsafe_load(avin.format_context[]);
 
-    for i = 1:formatContext.nb_streams
-        pStream = unsafe_load(formatContext.streams,i)
+    for i = 1:avFormatContext.nb_streams
+        pStream = unsafe_load(avFormatContext.streams,i)
         stream = unsafe_load(pStream)
         codec_ctx = unsafe_load(stream.codec)
         codec_type = codec_ctx.codec_type
@@ -256,13 +283,13 @@ function AVInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_ctx_
         end
     end
 
-    resize!(avin.stream_contexts, formatContext.nb_streams)
+    resize!(avin.stream_contexts, avFormatContext.nb_streams)
 
     avin
 end
 
 
-function VideoReader(avin::AVInput, video_stream=1;
+function VideoReader(avin::MediaInput, video_stream=1;
                      transcode::Bool=true,
                      transcode_interpolation=SWS_BILINEAR,
                      target_format=PIX_FMT_RGB24)
@@ -350,7 +377,7 @@ function VideoReader(avin::AVInput, video_stream=1;
     vr
 end
 
-VideoReader{T<:Union(IO, String)}(s::T, args...; kwargs...) = VideoReader(AVInput(s), args...; kwargs... )
+VideoReader{T<:Union(IO, String)}(s::T, args...; kwargs...) = VideoReader(MediaInput(s), args...; kwargs... )
 
 function decode_packet(r::VideoReader, aPacket)
     # Do we already have a complete frame that hasn't been consumed?
@@ -382,7 +409,7 @@ function retrieve(r::VideoReader{TRANSCODE}) # true=transcode
     t = r.transcodeContext
 
     if t.target_bits_per_pixel % 8 != 0
-        error("Unsupported video retrieval format.  Please allocate the buffer yourself and call retrieve!()")
+        error("Unsupported video retrieval format.  Please allocate the buffer yourself and call retrieve!(reader, buf)")
     end
 
     if t.target_bits_per_pixel == 8
@@ -467,14 +494,14 @@ end
 # Utility functions
 
 # Not exported
-open(filename::String) = AVInput(filename)
+open(filename::String) = MediaInput(filename)
 openvideo(args...; kwargs...) = VideoReader(args...; kwargs...)
 
 read(r::VideoReader) = retrieve(r)
 read!{T<:EightBitTypes}(r::VideoReader, buf::AbstractArray{T}) = retrieve!(r, buf)
 
-isopen{I<:IO}(avin::AVInput{I}) = isopen(avin.io)
-isopen(avin::AVInput) = avin.isopen
+isopen{I<:IO}(avin::MediaInput{I}) = isopen(avin.io)
+isopen(avin::MediaInput) = avin.isopen
 isopen(r::VideoReader) = isopen(r.avin)
 
 bufsize_check{T<:EightBitTypes}(r::VideoReader{NO_TRANSCODE}, buf::Array{T}) = (length(buf)*sizeof(T) == avpicture_get_size(r.format, r.width, r.height))
@@ -483,18 +510,18 @@ bufsize_check{T<:EightBitTypes}(t::VideoTranscodeContext, buf::Array{T}) = (leng
 
 have_decoded_frame(r) = r.aFrameFinished[1] > 0  # TODO: make sure the last frame was made available
 have_frame(r::StreamContext) = !isempty(r.frame_queue) || have_decoded_frame(r)
-have_frame(avin::AVInput) = any([have_frame(avin.stream_contexts[i+1]) for i in avin.listening])
+have_frame(avin::MediaInput) = any([have_frame(avin.stream_contexts[i+1]) for i in avin.listening])
 
 reset_frame_flag!(r) = (r.aFrameFinished[1] = 0)
 
-function eof(avin::AVInput)
+function eof(avin::MediaInput)
     !isopen(avin) && return true
     have_frame(avin) && return false
     got_frame = (pump(avin) != -1)
     return !got_frame
 end
 
-function eof{I<:IO}(avin::AVInput{I})
+function eof{I<:IO}(avin::MediaInput{I})
     !isopen(avin) && return true
     have_frame(avin) && return false
     return eof(avin.io)
@@ -510,7 +537,7 @@ function _close(r::VideoReader)
 end
 
 # Free AVIOContext object when done
-function Base.close(avin::AVInput)
+function Base.close(avin::MediaInput)
     # Test and set isopen
     Base.sigatomic_begin()
     isopen = avin.isopen
@@ -593,16 +620,16 @@ if have_avdevice()
             CAMERA_DEVICES = get_camera_devices(ffmpeg, "avfoundation", "\"\"")
         catch
             try
+                DEFAULT_CAMERA_FORMAT = AVFormat.av_find_input_format("qtkit")
                 CAMERA_DEVICES = get_camera_devices(ffmpeg, "qtkit", "\"\"")
             end
         end
 
         DEFAULT_CAMERA_DEVICE = length(CAMERA_DEVICES) > 0 ? CAMERA_DEVICES[1] : "FaceTime"
-        #DEFAULT_CAMERA_DEVICE = "Integrated"
     end
 
     function opencamera(device=DEFAULT_CAMERA_DEVICE, format=DEFAULT_CAMERA_FORMAT, args...; kwargs...)
-        camera = AVInput(device, format)
+        camera = MediaInput(device, format)
         VideoReader(camera, args...; kwargs...)
     end
 end
@@ -667,4 +694,3 @@ catch
     playvideo() = no_imageview()
     viewcam() = no_imageview()
 end
-

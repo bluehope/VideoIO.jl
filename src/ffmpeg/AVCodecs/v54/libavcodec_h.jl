@@ -2250,7 +2250,7 @@ end
 
 # typealias AVFrame Void
 
-immutable AVCodecContext
+immutable AVCodecContext <: AVUtil._AVClass
     av_class::Ptr{AVClass}
     log_level_offset::Cint
     codec_type::AVMediaType
