@@ -83,6 +83,8 @@ for name in VideoIO.TestVideos.names()
     while !eof(v)
         read!(v, img)
     end
+
+    close(v)
 end
 
 VideoIO.testvideo("ladybird") # coverage testing
