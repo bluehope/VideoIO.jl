@@ -1,2 +1,7 @@
 deps/deps.jl
+videos/*.mov*
+videos/*.mp4*
+videos/*.ogg*
+videos/*.ogv*
+videos/*.webm*
 .DS_Store
