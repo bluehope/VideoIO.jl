@@ -90,11 +90,11 @@ end
 
 function VideoFrame{M}(format::Val, ::Packed{M}, numBytes::Integer, width, height)
     if M == 0
-        buffer = Array{UInt8}(numBytes)
+        buffer = Array(UInt8, numBytes)         # Array{UInt8}(numBytes)
     elseif M == 1
-        buffer = Array{UInt8}(width, height)
+        buffer = Array(UInt8, width, height)    # Array{UInt8}(width, height)
     else
-        buffer = Array{UInt8}(M, width, height)
+        buffer = Array(UInt8, M, width, height) # Array{UInt8}(M, width, height)
     end
     VideoFrame(format, numBytes, width, height, buffer)
 end
