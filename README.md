@@ -5,7 +5,7 @@ VideoIO.jl
 
 Julia bindings for libav/ffmpeg.  
 
-Currently, only video reading is supported, for the following 
+Currently, only video reading is supported, for the following
 library versions:
 
 * libav 0.8, 9, 10
@@ -14,9 +14,9 @@ library versions:
 Video images may be read as raw arrays, or optionally, `Image`
 objects (if `Images.jl` is installed and loaded first).
 
-Feel free to request support for additional libav/ffmpeg 
+Feel free to request support for additional libav/ffmpeg
 versions, although earlier versions may be too challenging to
-support. 
+support.
 
 If you encounter any problems, please add the output
 of `VideoIO.versioninfo()` to your report.
@@ -47,7 +47,7 @@ function to be available.
 High Level Interface
 --------------------
 
-VideoIO contains a simple high-level interface which allows reading of 
+VideoIO contains a simple high-level interface which allows reading of
 video frames from a supported video file, or from a camera device:
 
     using Images
@@ -69,14 +69,14 @@ video frames from a supported video file, or from a camera device:
 
     img = read(f, Image)
     canvas, _ = ImageView.view(img)
-    
+
     while !eof(f)
         read!(f, img)
         ImageView.view(canvas, img)
         #sleep(1/30)
     end
 
-This code is essentially the code in `playvideo`, and will read and 
+This code is essentially the code in `playvideo`, and will read and
 (without the `sleep`) play a movie file as fast as possible.
 
 As with the `playvideo` function, the `Images` and `ImageView` packages
@@ -110,17 +110,17 @@ After importing VideoIO, you can import and use any of the subpackages directly
 Note that much of the functionality of these subpackages is not enabled
 by default, to avoid long compilation times as they load.  To control
 what is loaded, each library version has a file which imports that's
-modules files.  For example, ffmpeg's libswscale-v2 files are loaded by 
+modules files.  For example, ffmpeg's libswscale-v2 files are loaded by
 $(VideoIO_PKG_DIR)/src/ffmpeg/SWScale/v2/LIBSWSCALE.jl.
 
 Check these files to enable any needed functionality that isn't already
-enabled.  Note that you'll probably need to do this for each version 
+enabled.  Note that you'll probably need to do this for each version
 of the package for both ffmpeg and libav, and that the interfaces do
 change some from version to version.
 
 Note that, in general, the low-level functions are not very fun to use,
-so it is good to focus initially on enabling a nice, higher-level 
-function for these interfaces. 
+so it is good to focus initially on enabling a nice, higher-level
+function for these interfaces.
 
 Test Videos
 -----------
@@ -130,7 +130,7 @@ These are short videos in a variety of formats with non-restrictive
 (public domain or Creative Commons) licenses.
 
 * `VideoIO.TestVideos.available()` prints a list of all available test videos.
-* `VideoIO.testvideo("annie_oakley")` returns an AVInput object for the 
+* `VideoIO.testvideo("annie_oakley")` returns an AVInput object for the
   `"annie_oakley"` video.  The video will be downloaded if it isn't available.
 * `VideoIO.TestVideos.download_all()` downloads all test videos
 * `VideoIO.TestVideos.remove_all()` removes all test videos
@@ -142,5 +142,5 @@ At this point, a simple video interface is available, for multiple
 versions of libav and ffmpeg.  See TODO.md for some possible directions
 forward.
 
-Issues, requests, and/or pull requests for problems or additional 
+Issues, requests, and/or pull requests for problems or additional
 functionality are very welcome.
