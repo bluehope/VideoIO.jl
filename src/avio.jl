@@ -53,9 +53,9 @@ function show(io::IO, avin::MediaInput)
     (len = length(avin.unknown_info))    > 0 && println(io, "  $len unknown stream(s)")
 end
 
-type VideoFrame{T<:EightBitTypes}
+type VideoFrame{FORMAT}
     frame::Vector{AVFrame}
-    buffer::Vector{T}
+    buffer::Vector{@compat UInt8}
     format::AVPixelFormat
     width::Cint
     height::Cint
@@ -76,7 +76,7 @@ function VideoFrame(format, width, height, buffer = Vector{@compat UInt8}(0))
     frame = [AVFrame()]
     avpicture_fill(pointer(frame), buffer, format, width, height)
 
-    return VideoFrame(frame, buffer, format, width, height, true)
+    return VideoFrame{format}(frame, buffer, format, width, height, true)
 end
 
 function copy(vf::VideoFrame)
@@ -120,6 +120,7 @@ function VideoTranscodeContext(source_format, dest_format, width::Integer, heigh
     return VideoTranscodeContext(source_format, width, height, dest_format, dest_width, dest_height, interpolation, sws_context)
 end
 
+
 function transcode(source_frame::VideoFrame, dest_frame::VideoFrame, context::VideoTranscodeContext)
     source_buffers = dataBufferPtrs(source_frame)
     source_line_sizes = lineSizes(source_frame)
@@ -138,13 +139,10 @@ function transcode(source_frame::VideoFrame, dest_frame::VideoFrame, context::Vi
     Base.sigatomic_end()
 end
 
-const TRANSCODE=true
-const NO_TRANSCODE=false
-
 dataBufferPtrs(vf::VideoFrame) = reinterpret(Ptr{UInt8}, [vf.frame[1].data])
 lineSizes(vf::VideoFrame) = reinterpret(Cint, [vf.frame[1].linesize])
 
-type VideoReader{transcode,S,T} <: StreamContext
+type VideoReader{S,T} <: StreamContext
     avin::MediaInput
     stream_info::StreamInfo
 
@@ -338,9 +336,9 @@ end
 
 
 function VideoReader(avin::MediaInput, video_stream=1;
+                     target_format=PIX_FMT_RGB24,
                      transcode::Bool=true,
-                     transcode_interpolation=SWS_BILINEAR,
-                     target_format=PIX_FMT_RGB24)
+                     transcode_interpolation=SWS_BILINEAR)
 
     1 <= video_stream <= length(avin.video_info) || error("video stream $video_stream not found")
 
@@ -376,25 +374,25 @@ function VideoReader(avin::MediaInput, video_stream=1;
     transcodeContext = VideoTranscodeContext(pix_fmt, target_format, width, height)
     transcoded_frame = VideoFrame(target_format, width, height)
 
-    vr = VideoReader{transcode, UInt8, UInt8}(avin,
-                                              stream_info,
+    vr = VideoReader{pix_fmt, target_format}(avin,
+                                             stream_info,
 
-                                              stream_info.stream_index0,
-                                              pVideoCodecContext,
-                                              pVideoCodec,
-                                              aFrameFinished,
+                                             stream_info.stream_index0,
+                                             pVideoCodecContext,
+                                             pVideoCodec,
+                                             aFrameFinished,
 
-                                              videoFrame,
-                                              transcoded_frame,
+                                             videoFrame,
+                                             transcoded_frame,
 
-                                              pix_fmt,
-                                              width,
-                                              height,
-                                              framerate,
-                                              aspect_ratio,
+                                             pix_fmt,
+                                             width,
+                                             height,
+                                             framerate,
+                                             aspect_ratio,
 
-                                              VideoFrame{UInt8}[],  # TODO: UInt8 isn't always right
-                                              transcodeContext)
+                                             VideoFrame{UInt8}[],  # TODO: UInt8 isn't always right
+                                             transcodeContext)
 
     idx0 = stream_info.stream_index0
     push!(avin.listening, idx0)
@@ -421,16 +419,16 @@ function decode_packet(r::VideoReader, aPacket)
 end
 
 "Retrieve a raw video frame"
-function retrieve(r::VideoReader{NO_TRANSCODE}) # false=don't transcode
+function retrieve{S}(r::VideoReader{S,S}) # don't transcode
     dest_video_frame = VideoFrame(r.format, r.width, r.height)
     retrieve!(r, dest_video_frame)
     return dest_video_frame.buffer
 end
 
 "Retrieve a raw video frame into the given buffer"
-function retrieve!{T<:EightBitTypes}(r::VideoReader{NO_TRANSCODE}, buf::Array{T})
+function retrieve!{S,T<:EightBitTypes}(r::VideoReader{S,S}, buf::Array{T})
 
-    if buf !== r.video_frame.buffer
+    if pointer(buf) != pointer(r.video_frame.buffer)
         dest_video_frame = VideoFrame(r.format, r.width, r.height, buf)
     else
         dest_video_frame = r.video_frame
@@ -442,8 +440,8 @@ function retrieve!{T<:EightBitTypes}(r::VideoReader{NO_TRANSCODE}, buf::Array{T}
 end
 
 "Retrieve a raw video frame into the given video frame object"
-function retrieve!(r::VideoReader{NO_TRANSCODE}, dest_video_frame::VideoFrame)
-    if r.videoFrame !== dest_video_frame
+function retrieve!{S}(r::VideoReader{S,S}, dest_video_frame::VideoFrame)
+    if r.videoFrame != dest_video_frame
         r.videoFrame = dest_video_frame
     end
 
@@ -474,7 +472,7 @@ end
 
 
 "Retrieve and return a transcoded a video frame"
-function retrieve(r::VideoReader{TRANSCODE}) # true=transcode
+function retrieve(r::VideoReader)
     t = r.transcodeContext
     dest_video_frame = VideoFrame(t.dest_format, t.dest_width, t.dest_height)
 
@@ -484,7 +482,7 @@ function retrieve(r::VideoReader{TRANSCODE}) # true=transcode
 end
 
 "Retrieve and transcode a video frame, placing the result in the given buffer"
-function retrieve!{T<:EightBitTypes}(r::VideoReader{TRANSCODE}, buf::Array{T})
+function retrieve!{T<:EightBitTypes}(r::VideoReader, buf::Array{T})
     t = r.transcodeContext
 
     # This is a pointer comparison because the passed in array might be a wrapper
@@ -502,7 +500,7 @@ function retrieve!{T<:EightBitTypes}(r::VideoReader{TRANSCODE}, buf::Array{T})
 end
 
 "Retrieve and transcode a video frame into the given VideoFrame"
-function retrieve!(r::VideoReader{TRANSCODE}, dest_frame::VideoFrame)
+function retrieve!(r::VideoReader, dest_frame::VideoFrame)
     while !have_frame(r)
         idx = pump(r.avin)
         idx == r.stream_index0 && break
@@ -533,8 +531,8 @@ isopen{I<:IO}(avin::MediaInput{I}) = isopen(avin.io)
 isopen(avin::MediaInput) = avin.isopen
 isopen(r::VideoReader) = isopen(r.avin)
 
-bufsize_check{T<:EightBitTypes}(r::VideoReader{NO_TRANSCODE}, buf::Array{T}) = (sizeof(buf)*sizeof(T) == avpicture_get_size(r.format, r.width, r.height))
-bufsize_check{T<:EightBitTypes}(r::VideoReader{TRANSCODE}, buf::Array{T}) = bufsize_check(r.transcodeContext, buf)
+bufsize_check{S,T<:EightBitTypes}(r::VideoReader{S,S}, buf::Array{T}) = (sizeof(buf)*sizeof(T) == avpicture_get_size(r.format, r.width, r.height))
+bufsize_check{T<:EightBitTypes}(r::VideoReader, buf::Array{T}) = bufsize_check(r.transcodeContext, buf)
 bufsize_check{T<:EightBitTypes}(t::VideoTranscodeContext, buf::Array{T}) = (sizeof(buf) == avpicture_get_size(t.dest_fmt, t.width, t.height))
 
 have_decoded_frame(r) = r.aFrameFinished[1] > 0  # TODO: make sure the last frame was made available
