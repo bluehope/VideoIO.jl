@@ -36,7 +36,7 @@ type MediaInput{I}
     attachment_info::Vector{StreamInfo}
 
     listening::Set{Int}
-    stream_contexts::Array{StreamContext}
+    stream_contexts::Vector{StreamContext}
 
     isopen::Bool
 end
@@ -86,9 +86,9 @@ function VideoFrame(format::Cint, width, height, args...)
     VideoFrame(fmt, v, numBytes, width, height, args...)
 end
 
-function VideoFrame{M}(format::Val, v::Packed{M}, numBytes::Integer, width, height)
+function VideoFrame{M}(format::Val, ::Packed{M}, numBytes::Integer, width, height)
     if M == 0
-        buffer = Vector{UInt8}(numBytes)
+        buffer = Array{UInt8}(numBytes)
     elseif M == 1
         buffer = Array{UInt8}(width, height)
     else
@@ -99,7 +99,7 @@ end
 
 
 # We could get the
-function VideoFrame{T,B}(format::Val{T}, numBytes::Integer, width, height, buffer::B)
+function VideoFrame{T,B}(::Val{T}, numBytes::Integer, width, height, buffer::B)
     if sizeof(buffer) != numBytes
         throw(ArgumentError("Buffer is the wrong size!  Got $(sizeof(buffer)), expected $numBytes."))
     end
@@ -112,7 +112,7 @@ end
 
 
 function copy(vf::VideoFrame)
-    if not vf.initialized
+    if !vf.initialized
         throw(ErrorException("VideoFrame wasn't initialized with a buffer size.  Please report this error"))
     end
     new_buf = copy(vf.buffer)
@@ -319,7 +319,7 @@ function MediaInput{T<:Union(IO, String)}(source::T, input_format=C_NULL; avio_c
     iocontext = IOContext()
 
     # Allocate this object (needed to pass into AVIOContext in open_avinput)
-    avin = MediaInput{T}(source, apFormatContext, apAVIOContext, avio_ctx_buffer_size,
+    avin = MediaInput{T}(source, format_context, iocontext, avio_ctx_buffer_size,
                       aPacket, [StreamInfo[] for i=1:6]..., Set(Int[]), StreamContext[], false)
 
     # Make sure we deallocate everything on exit
@@ -406,7 +406,8 @@ function VideoReader(avin::MediaInput, video_stream=1;
     pFmtDesc = av_pix_fmt_desc_get(target_format)
     bits_per_pixel = av_get_bits_per_pixel(pFmtDesc)
 
-    transcodeContext = VideoTranscodeContext(pix_fmt, target_format, width, height)
+    transcodeContext = VideoTranscodeContext(pix_fmt, target_format, width, height,
+                                             interpolation = transcode_interpolation)
     transcoded_frame = VideoFrame(target_format, width, height)
 
     vr = VideoReader(avin,
@@ -726,7 +727,7 @@ try
                 $r!(c::VideoReader, img::Main.Images.Image) = ($r!(c, Main.Images.data(img)); img)
 
                 # read, retrieve
-                function $r(c::VideoReader, ::Type{Main.Images.Image}, colorspace="RGB", colordim=1, spatialorder=["x","y"])
+                function $r(c::VideoReader, ::Type{Main.Images.Image}) #, colorspace="RGB", colordim=1, spatialorder=["x","y"])
                     img = Main.Images.colorim($r(c::VideoReader))
                 end
             end
