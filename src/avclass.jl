@@ -98,20 +98,20 @@ end
 get_opt_string(x::Ptr, s) = throw(ErrorException("$x must be a pointer to an AVClass enabled struct"))
 
 get_opt(x::Ptr, s, ::Type{Val}) = get_opt_string(x, s)
-#get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_STRING}) = get_opt_string(x, s)
-#get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_SAMPLE_FMT}) = get_opt_string(x, s)
-#get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_PIXEL_FMT}) = get_opt_string(x, s)
-#get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_COLOR}) = get_opt_string(x, s)
-#get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_CHANNEL_LAYOUT}) = get_opt_string(x, s)
+#get_opt(x::Ptr, s, @compat Val{AVUtil.AV_OPT_TYPE_STRING}) = get_opt_string(x, s)
+#get_opt(x::Ptr, s, @compat Val{AVUtil.AV_OPT_TYPE_SAMPLE_FMT}) = get_opt_string(x, s)
+#get_opt(x::Ptr, s, @compat Val{AVUtil.AV_OPT_TYPE_PIXEL_FMT}) = get_opt_string(x, s)
+#get_opt(x::Ptr, s, @compat Val{AVUtil.AV_OPT_TYPE_COLOR}) = get_opt_string(x, s)
+#get_opt(x::Ptr, s, @compat Val{AVUtil.AV_OPT_TYPE_CHANNEL_LAYOUT}) = get_opt_string(x, s)
 
-function get_opt(x::Ptr, s, ::Union{Type{Val{AVUtil.AV_OPT_TYPE_RATIONAL}},
-                                    Type{Val{AVUtil.AV_OPT_TYPE_VIDEO_RATE}}})
+function get_opt(x::Ptr, s, @compat ::Type{Union{Val{AVUtil.AV_OPT_TYPE_RATIONAL},
+                                                 Val{AVUtil.AV_OPT_TYPE_VIDEO_RATE}}})
     val = get_opt_string(x, s)
     num, den = [parse(Int32, x) for x in split(val, '/')]
     return num//den
 end
 
-function get_opt(x::Ptr, s, ::Type{Val{AVUtil.AV_OPT_TYPE_IMAGE_SIZE}})
+function get_opt(x::Ptr, s, @compat ::Type{Val{AVUtil.AV_OPT_TYPE_IMAGE_SIZE}})
     val = get_opt_string(x, s)
     width, height = [parse(Int32, x) for x in split(val, 'x')]
     return (width, height)
@@ -154,13 +154,13 @@ set_opt!(x::Ptr, v, s) = throw(ErrorException("$s must be a pointer to an AVClas
 set_opt!{T<:Real}(x::Ptr, v, s, ::Type{T}) = set_opt!(x, string(v), string(s))
 set_opt!{T<:Val}(x::Ptr, v, s, ::Type{T})  = set_opt!(x, string(v), string(s))
 
-function set_opt!(x::Ptr, v, s, ::Union{Type{Val{AVUtil.AV_OPT_TYPE_RATIONAL}},
-                                        Type{Val{AVUtil.AV_OPT_TYPE_VIDEO_RATE}}})
+function set_opt!(x::Ptr, v, s, @compat ::Type{Union{Val{AVUtil.AV_OPT_TYPE_RATIONAL},
+                                                     Val{AVUtil.AV_OPT_TYPE_VIDEO_RATE}}})
     set_str = replace(string(v), "//", "/")
     return set_opt!(x, set_str, string(s))
 end
 
-function set_opt!(x::Ptr, v, s, ::Type{Val{AVUtil.AV_OPT_TYPE_IMAGE_SIZE}})
+function set_opt!(x::Ptr, v, s, @compat ::Type{Val{AVUtil.AV_OPT_TYPE_IMAGE_SIZE}})
     length(v) != 2 && throw(ArgumentError("Please pass width and height as a tuple when setting $s"))
     set_str = "$(v[1])x$(v[2])"
     return set_opt!(x, set_str, string(s))
