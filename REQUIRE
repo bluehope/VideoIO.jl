@@ -1,5 +1,6 @@
 julia v0.3
 Compat
+Docile
 ZipFile
 BinDeps v0.3.4
 Images v0.4.4
