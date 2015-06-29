@@ -52,31 +52,64 @@ function show(io::IO, avin::MediaInput)
     (len = length(avin.unknown_info))    > 0 && println(io, "  $len unknown stream(s)")
 end
 
-type VideoFrame{FORMAT}
+
+immutable Packed{M} end
+
+ImagePixelType(::Val) = Packed{0}()
+ImagePixelType(::Val{AV_PIX_FMT_GRAY8})   = Packed{1}()
+ImagePixelType(::Val{AV_PIX_FMT_GRAY8A})  = Packed{2}()
+ImagePixelType(::Val{AV_PIX_FMT_RGB24})   = Packed{3}()
+ImagePixelType(::Val{AV_PIX_FMT_BGR24})   = Packed{3}()
+ImagePixelType(::Val{AV_PIX_FMT_RGBA})    = Packed{4}()
+ImagePixelType(::Val{AV_PIX_FMT_BGRA})    = Packed{4}()
+ImagePixelType(::Val{AV_PIX_FMT_ARGB})    = Packed{4}()
+ImagePixelType(::Val{AV_PIX_FMT_ABGR})    = Packed{4}()
+ImagePixelType(::Val{AV_PIX_FMT_0RGB})    = Packed{4}()
+ImagePixelType(::Val{AV_PIX_FMT_0BGR})    = Packed{4}()
+ImagePixelType(::Val{AV_PIX_FMT_RGB0})    = Packed{4}()
+ImagePixelType(::Val{AV_PIX_FMT_BGR0})    = Packed{4}()
+
+type VideoFrame{FORMAT,B<:AbstractArray}
     frame::Vector{AVFrame}
-    buffer::Vector{@compat UInt8}
+    buffer::B
     format::AVPixelFormat
     width::Cint
     height::Cint
     initialized::Bool
 end
 
-function VideoFrame(format, width, height, buffer = Vector{@compat UInt8}(0))
+function VideoFrame(format::Cint, width, height, args...)
+    fmt = Val{format}()
+    v = ImagePixelType(fmt)
     numBytes = avpicture_get_size(format, width, height)
 
-    if sizeof(buffer) > 0
-        if sizeof(buffer) != numBytes
-            throw(ArgumentError("Buffer is the wrong size!  Got $(sizeof(buffer)), expected $numBytes."))
-        end
+    VideoFrame(fmt, v, numBytes, width, height, args...)
+end
+
+function VideoFrame{M}(format::Val, v::Packed{M}, numBytes::Integer, width, height)
+    if M == 0
+        buffer = Vector{UInt8}(numBytes)
+    elseif M == 1
+        buffer = Array{UInt8}(width, height)
     else
-        buffer = @compat Vector{UInt8}(numBytes)
+        buffer = Array{UInt8}(M, width, height)
+    end
+    VideoFrame(format, numBytes, width, height, buffer)
+end
+
+
+# We could get the
+function VideoFrame{T,B}(format::Val{T}, numBytes::Integer, width, height, buffer::B)
+    if sizeof(buffer) != numBytes
+        throw(ArgumentError("Buffer is the wrong size!  Got $(sizeof(buffer)), expected $numBytes."))
     end
 
     frame = [AVFrame()]
-    avpicture_fill(pointer(frame), buffer, format, width, height)
+    avpicture_fill(pointer(frame), buffer, T, width, height)
 
-    return VideoFrame{format}(frame, buffer, format, width, height, true)
+    return VideoFrame{T,B}(frame, buffer, T, width, height, true)
 end
+
 
 function copy(vf::VideoFrame)
     if not vf.initialized
@@ -141,7 +174,7 @@ end
 dataBufferPtrs(vf::VideoFrame) = reinterpret(Ptr{UInt8}, [vf.frame[1].data])
 lineSizes(vf::VideoFrame) = reinterpret(Cint, [vf.frame[1].linesize])
 
-type VideoReader{S,T} <: StreamContext
+type VideoReader{S,T,N,M} <: StreamContext
     avin::MediaInput
     stream_info::StreamInfo
 
@@ -150,8 +183,8 @@ type VideoReader{S,T} <: StreamContext
     pVideoCodec::Ptr{AVCodec}
     aFrameFinished::Vector{Int32}
 
-    videoFrame::VideoFrame{S}   # Reusable frame
-    transcoded_frame::VideoFrame{T}
+    videoFrame::VideoFrame{S,N}   # Reusable frame
+    transcoded_frame::VideoFrame{T,M}
 
     format::Cint
     width::Cint
@@ -159,7 +192,7 @@ type VideoReader{S,T} <: StreamContext
     framerate::Rational
     aspect_ratio::Rational
 
-    frame_queue::Vector{VideoFrame{S}}
+    frame_queue::Vector{VideoFrame{S,N}}
     transcodeContext::VideoTranscodeContext
 end
 
@@ -376,25 +409,25 @@ function VideoReader(avin::MediaInput, video_stream=1;
     transcodeContext = VideoTranscodeContext(pix_fmt, target_format, width, height)
     transcoded_frame = VideoFrame(target_format, width, height)
 
-    vr = VideoReader{pix_fmt, target_format}(avin,
-                                             stream_info,
+    vr = VideoReader(avin,
+                     stream_info,
 
-                                             stream_info.stream_index0,
-                                             pVideoCodecContext,
-                                             pVideoCodec,
-                                             aFrameFinished,
+                     stream_info.stream_index0,
+                     pVideoCodecContext,
+                     pVideoCodec,
+                     aFrameFinished,
 
-                                             videoFrame,
-                                             transcoded_frame,
+                     videoFrame,
+                     transcoded_frame,
 
-                                             pix_fmt,
-                                             width,
-                                             height,
-                                             framerate,
-                                             aspect_ratio,
+                     pix_fmt,
+                     width,
+                     height,
+                     framerate,
+                     aspect_ratio,
 
-                                             VideoFrame{UInt8}[],  # TODO: UInt8 isn't always right
-                                             transcodeContext)
+                     typeof(videoFrame)[],
+                     transcodeContext)
 
     idx0 = stream_info.stream_index0
     push!(avin.listening, idx0)
@@ -428,8 +461,7 @@ function retrieve{S}(r::VideoReader{S,S}) # don't transcode
 end
 
 "Retrieve a raw video frame into the given buffer"
-function retrieve!{S,T<:EightBitTypes}(r::VideoReader{S,S}, buf::Array{T})
-
+function retrieve!{S,T<:EightBitTypes}(r::VideoReader{S,S}, buf::AbstractArray{T})
     if pointer(buf) != pointer(r.video_frame.buffer)
         dest_video_frame = VideoFrame(r.format, r.width, r.height, buf)
     else
@@ -438,7 +470,7 @@ function retrieve!{S,T<:EightBitTypes}(r::VideoReader{S,S}, buf::Array{T})
 
     retrieve!(r, dest_video_frame)
 
-    return dest_video_frame.buffer
+    return buf
 end
 
 "Retrieve a raw video frame into the given video frame object"
@@ -460,31 +492,16 @@ end
 
 # Converts a grabbed frame to the correct format (RGB by default)
 
-function reshape{T<:EightBitTypes}(b::Vector{T}, fmt::AVPixelFormat, width::Int, height::Int)
-    pFmtDesc = av_pix_fmt_desc_get(fmt)
-    bits_per_pixel = av_get_bits_per_pixel(pFmtDesc)
-
-    if bits_per_pixel == 24 || bits_per_pixel == 32
-        depth = div(sizeof(b), width*height)
-        return Base.reshape(b, (depth, width, height))
-    else
-        return b
-    end
-end
-
-
 "Retrieve and return a transcoded a video frame"
 function retrieve(r::VideoReader)
     t = r.transcodeContext
     dest_video_frame = VideoFrame(t.dest_format, t.dest_width, t.dest_height)
-
     retrieve!(r, dest_video_frame)
-
-    return @compat reshape(dest_video_frame.buffer, t.dest_format, Int(t.dest_width), Int(t.dest_height))
+    return dest_video_frame.buffer
 end
 
 "Retrieve and transcode a video frame, placing the result in the given buffer"
-function retrieve!{T<:EightBitTypes}(r::VideoReader, buf::Array{T})
+function retrieve!{T<:EightBitTypes}(r::VideoReader, buf::AbstractArray{T})
     t = r.transcodeContext
 
     # This is a pointer comparison because the passed in array might be a wrapper
@@ -498,7 +515,7 @@ function retrieve!{T<:EightBitTypes}(r::VideoReader, buf::Array{T})
 
     retrieve!(r, dest_video_frame)
 
-    return @compat reshape(dest_video_frame.buffer, t.dest_format, Int(t.dest_width), Int(t.dest_height))
+    return buf
 end
 
 "Retrieve and transcode a video frame into the given VideoFrame"
