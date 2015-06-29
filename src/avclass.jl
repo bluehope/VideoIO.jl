@@ -2,24 +2,24 @@
 
 ## Mapping from AVOptionType to Julia types
 
-av_opt_type2julia = Dict{UInt32, DataType}(AVUtil.AV_OPT_TYPE_FLAGS => UInt64,
-                                           AVUtil.AV_OPT_TYPE_INT => Int32,
-                                           AVUtil.AV_OPT_TYPE_INT64 => Int64,
-                                           AVUtil.AV_OPT_TYPE_DOUBLE => Float64,
-                                           AVUtil.AV_OPT_TYPE_FLOAT => Float32,
-                                           #AVUtil.AV_OPT_TYPE_STRING => Cstring,
-                                           #AVUtil.AV_OPT_TYPE_RATIONAL => Rational{Int32},
-                                           #AVUtil.AV_OPT_TYPE_BINARY => _AVBinaryBlob,
-                                           #AVUtil.AV_OPT_TYPE_DICT => AVDict,
-                                           #AVUtil.AV_OPT_TYPE_CONST => Int64 or Float64,
-                                           #AVUtil.AV_OPT_TYPE_IMAGE_SIZE => _AVImageSize,
-                                           #AVUtil.AV_OPT_TYPE_PIXEL_FMT => UInt32,
-                                           #AVUtil.AV_OPT_TYPE_SAMPLE_FMT => UInt32,
-                                           #AVUtil.AV_OPT_TYPE_VIDEO_RATE => Rational{Int32},
-                                           AVUtil.AV_OPT_TYPE_DURATION => Int64,
-                                           #AVUtil.AV_OPT_TYPE_COLOR => <needs to be decoded>,
-                                           #AVUtil.AV_OPT_TYPE_CHANNEL_LAYOUT => Int64
-                                           )
+av_opt_type2julia = @compat Dict{UInt32, DataType}(AVUtil.AV_OPT_TYPE_FLAGS => UInt64,
+                                                   AVUtil.AV_OPT_TYPE_INT => Int32,
+                                                   AVUtil.AV_OPT_TYPE_INT64 => Int64,
+                                                   AVUtil.AV_OPT_TYPE_DOUBLE => Float64,
+                                                   AVUtil.AV_OPT_TYPE_FLOAT => Float32,
+                                                   #AVUtil.AV_OPT_TYPE_STRING => Cstring,
+                                                   #AVUtil.AV_OPT_TYPE_RATIONAL => Rational{Int32},
+                                                   #AVUtil.AV_OPT_TYPE_BINARY => _AVBinaryBlob,
+                                                   #AVUtil.AV_OPT_TYPE_DICT => AVDict,
+                                                   #AVUtil.AV_OPT_TYPE_CONST => Int64 or Float64,
+                                                   #AVUtil.AV_OPT_TYPE_IMAGE_SIZE => _AVImageSize,
+                                                   #AVUtil.AV_OPT_TYPE_PIXEL_FMT => UInt32,
+                                                   #AVUtil.AV_OPT_TYPE_SAMPLE_FMT => UInt32,
+                                                   #AVUtil.AV_OPT_TYPE_VIDEO_RATE => Rational{Int32},
+                                                   AVUtil.AV_OPT_TYPE_DURATION => Int64,
+                                                   #AVUtil.AV_OPT_TYPE_COLOR => <needs to be decoded>,
+                                                   #AVUtil.AV_OPT_TYPE_CHANNEL_LAYOUT => Int64
+                                                   )
 
 
 ##
