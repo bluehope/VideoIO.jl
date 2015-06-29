@@ -15,4 +15,9 @@ module AVUtil
   const AV_OPT_TYPE_COLOR = @compat UInt32(1129270354)
   const AV_OPT_TYPE_CHANNEL_LAYOUT = @compat UInt32(1128811585)
 
+  const AV_PIX_FMT_0RGB = @compat Int32(295)
+  const AV_PIX_FMT_RGB0 = @compat Int32(296)
+  const AV_PIX_FMT_0BGR = @compat Int32(297)
+  const AV_PIX_FMT_BGR0 = @compat Int32(298)
+
 end
