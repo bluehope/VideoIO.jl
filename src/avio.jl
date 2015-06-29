@@ -57,7 +57,8 @@ immutable Packed{M} end
 
 ImagePixelType(::Val) = Packed{0}()
 ImagePixelType(::Val{AV_PIX_FMT_GRAY8})   = Packed{1}()
-ImagePixelType(::Val{AV_PIX_FMT_GRAY8A})  = Packed{2}()
+#ImagePixelType(::Val{AV_PIX_FMT_GRAY8A})  = Packed{2}() # not defined for libav
+ImagePixelType(::Val{AV_PIX_FMT_Y400A})   = Packed{2}()  # same as GRAY8A
 ImagePixelType(::Val{AV_PIX_FMT_RGB24})   = Packed{3}()
 ImagePixelType(::Val{AV_PIX_FMT_BGR24})   = Packed{3}()
 ImagePixelType(::Val{AV_PIX_FMT_RGBA})    = Packed{4}()
