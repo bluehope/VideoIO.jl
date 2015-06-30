@@ -620,13 +620,14 @@ end
 
 # Free AVIOContext object when done
 function Base.close(avin::MediaInput)
+    println("closing MediaInput (", avin.io, ")")
     # Test and set isopen
     Base.sigatomic_begin()
     isopen = avin.isopen
     avin.isopen = false
     Base.sigatomic_end()
 
-    !isopen && return
+    !isopen && (println("Already closed..."; return))
 
     for i in avin.listening
         _close(avin.stream_contexts[i+1])
