@@ -290,9 +290,11 @@ function _openvideo(avin::MediaInput, io::IO, input_format=C_NULL)
 
     # pFormatContext->pb = pAVIOContext
     av_setfield!(avin.format_context[], :pb, avin.iocontext[])
+    println("getfield: ", av_getfield(avin.format_context[], :pb))
+    println("iocontext: ", avin.iocontext[])
 
     # "Open" the input
-    if avformat_open_input(avin.format_context, C_NULL, input_format, C_NULL) != 0
+    if avformat_open_input(avin.format_context, "dummy", input_format, C_NULL) != 0
         error("Unable to open input")
     end
 
