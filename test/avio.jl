@@ -7,9 +7,7 @@ testdir = joinpath(Pkg.dir("VideoIO"), "test")
 videodir = joinpath(Pkg.dir("VideoIO"), "videos")
 
 VideoIO.TestVideos.available()
-#VideoIO.TestVideos.download_all()
-VideoIO.TestVideos.download("annie-oakley.ogg")
-VideoIO.TestVideos.download("black_hole.webm")
+VideoIO.TestVideos.download_all()
 
 swapext(f, new_ext) = "$(splitext(f)[1])$new_ext"
 
