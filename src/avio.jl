@@ -627,7 +627,7 @@ function Base.close(avin::MediaInput)
     avin.isopen = false
     Base.sigatomic_end()
 
-    !isopen && (println("Already closed..."; return))
+    !isopen && (println("Already closed..."); return)
 
     for i in avin.listening
         _close(avin.stream_contexts[i+1])
