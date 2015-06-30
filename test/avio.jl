@@ -58,7 +58,6 @@ end
 
 println(STDERR, "Testing IO reading...")
 for name in VideoIO.TestVideos.names()
-    @osx_only startswith(name, "crescent") && continue
     # TODO: fix me?
     (startswith(name, "ladybird") || startswith(name, "NPS")) && continue
 
@@ -79,7 +78,11 @@ for name in VideoIO.TestVideos.names()
 
     #imwrite(img, first_frame_file)        # uncomment line when creating png files
 
-    @test img == first_frame               # comment line when creating png files
+    @osx_only if !startswith(name, "crescent")
+        @test img == first_frame               # comment line when creating png files
+    end
+    @windows_only @test img == first_frame               # comment line when creating png files
+    @linux_only   @test img == first_frame               # comment line when creating png files
 
     while !eof(v)
         read!(v, img)

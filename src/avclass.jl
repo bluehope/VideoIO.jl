@@ -235,6 +235,7 @@ function FormatContext()
 end
 
 function free(c::FormatContext)
+    println("FormatContext: ", c)
     Base.sigatomic_begin()
     is_allocated(c) && avformat_close_input(c.pptr)
     Base.sigatomic_end()
