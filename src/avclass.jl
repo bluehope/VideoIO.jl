@@ -231,6 +231,7 @@ function FormatContext()
 
     fc = FormatContext([ptr])
     #finalizer(fc, free)
+    println("FormatContext created: ", fc)
     fc
 end
 
@@ -239,6 +240,7 @@ function free(c::FormatContext)
     Base.sigatomic_begin()
     is_allocated(c) && avformat_close_input(c.pptr)
     Base.sigatomic_end()
+    println("FormatContext (closed): ", c)
 end
 
 ############
