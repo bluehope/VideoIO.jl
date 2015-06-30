@@ -230,17 +230,15 @@ function FormatContext()
     ptr == C_NULL && throw(ErrorException("Unable to allocate FormatContext (out of memory"))
 
     fc = FormatContext([ptr])
-    #finalizer(fc, free)
-    println("FormatContext created: ", fc)
+    finalizer(fc, free)
     fc
 end
 
 function free(c::FormatContext)
-    println("FormatContext: ", c)
     Base.sigatomic_begin()
-    is_allocated(c) && avformat_close_input(c.pptr)
+    is_allocated(c) && avformat_free_context(c[])
+    c[] = C_NULL
     Base.sigatomic_end()
-    println("FormatContext (closed): ", c)
 end
 
 ############

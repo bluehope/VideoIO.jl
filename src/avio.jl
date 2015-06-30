@@ -286,12 +286,10 @@ function _openvideo(avin::MediaInput, io::IO, input_format=C_NULL)
     #av_opt_set(avin.format_context[], "analyzeduration", "1000000", 0)
 
     avin.iocontext = IOContext(avin.avio_ctx_buffer_size, 0, pointer_from_objref(avin),
-                               read_packet, C_NULL, C_NULL, false)
+                               read_packet, C_NULL, C_NULL)
 
     # pFormatContext->pb = pAVIOContext
     av_setfield!(avin.format_context[], :pb, avin.iocontext[])
-    println("getfield: ", av_getfield(avin.format_context[], :pb))
-    println("iocontext: ", avin.iocontext[])
 
     # "Open" the input
     if avformat_open_input(avin.format_context, "dummy", input_format, C_NULL) != 0
@@ -620,20 +618,25 @@ end
 
 # Free AVIOContext object when done
 function Base.close(avin::MediaInput)
-    println("closing MediaInput (", avin.io, ")")
     # Test and set isopen
     Base.sigatomic_begin()
     isopen = avin.isopen
     avin.isopen = false
     Base.sigatomic_end()
 
-    !isopen && (println("Already closed..."); return)
+    !isopen && return
 
     for i in avin.listening
         _close(avin.stream_contexts[i+1])
     end
     # Fix for segmentation fault issue #44
     empty!(avin.listening)
+
+    println("FormatContext: ", avin.format_context.pptr)
+    Base.sigatomic_begin()
+    avformat_close_input(avin.format_context.pptr)
+    Base.sigatomic_end()
+    println("FormatContext (closed): ", avin.format_context.pptr)
 
     free(avin.format_context)
     free(avin.iocontext)
