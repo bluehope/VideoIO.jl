@@ -285,13 +285,11 @@ function _openvideo(avin::MediaInput, io::IO, input_format=C_NULL)
     #av_opt_set(avin.format_context[], "probesize", "100000000", 0)
     #av_opt_set(avin.format_context[], "analyzeduration", "1000000", 0)
 
-    iocontext = IOContext(avin.avio_ctx_buffer_size, 0, pointer_from_objref(avin),
-                          read_packet, C_NULL, C_NULL, false)
+    avin.iocontext = IOContext(avin.avio_ctx_buffer_size, 0, pointer_from_objref(avin),
+                               read_packet, C_NULL, C_NULL, false)
 
     # pFormatContext->pb = pAVIOContext
-    av_setfield!(avin.format_context[], :pb, iocontext[])
-
-    # TODO: release this when releasing the format context?
+    av_setfield!(avin.format_context[], :pb, avin.iocontext[])
 
     # "Open" the input
     if avformat_open_input(avin.format_context, C_NULL, input_format, C_NULL) != 0
