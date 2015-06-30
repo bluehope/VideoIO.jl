@@ -17,44 +17,44 @@ function notblank(img)
     all(green(img) .== 0x00uf8) || all(blue(img) .== 0x00uf8) || all(red(img) .== 0x00uf8) || maximum(reinterpret(Ufixed8, img)) < 0xcfuf8
 end
 
-for name in VideoIO.TestVideos.names()
-    @osx_only startswith(name, "crescent") && continue
-    println(STDERR, "   Testing $name...")
+# for name in VideoIO.TestVideos.names()
+#     @osx_only startswith(name, "crescent") && continue
+#     println(STDERR, "   Testing $name...")
 
-    first_frame_file = joinpath(testdir, swapext(name, ".png"))
-    first_frame = imread(first_frame_file) # comment line when creating png files
+#     first_frame_file = joinpath(testdir, swapext(name, ".png"))
+#     first_frame = imread(first_frame_file) # comment line when creating png files
 
-    f = VideoIO.testvideo(name)
-    v = VideoIO.openvideo(f)
+#     f = VideoIO.testvideo(name)
+#     v = VideoIO.openvideo(f)
 
-    img = read(v, Image)
+#     img = read(v, Image)
 
-    # Find the first non-trivial image
-    while notblank(img)
-        read!(v, img)
-    end
+#     # Find the first non-trivial image
+#     while notblank(img)
+#         read!(v, img)
+#     end
 
-    #imwrite(img, first_frame_file)        # uncomment line when creating png files
+#     #imwrite(img, first_frame_file)        # uncomment line when creating png files
 
-    @test img == first_frame               # comment line when creating png files
+#     @test img == first_frame               # comment line when creating png files
 
-    while !eof(v)
-        read!(v, img)
-    end
+#     while !eof(v)
+#         read!(v, img)
+#     end
 
-    # read first frames again, and compare
-    seekstart(v)
+#     # read first frames again, and compare
+#     seekstart(v)
 
-    read!(v, img)
+#     read!(v, img)
 
-    while notblank(img)
-        read!(v, img)
-    end
+#     while notblank(img)
+#         read!(v, img)
+#     end
 
-    @test img == first_frame
+#     @test img == first_frame
 
-    close(f) # closes v too
-end
+#     close(f) # closes v too
+# end
 
 println(STDERR, "Testing IO reading...")
 for name in VideoIO.TestVideos.names()
