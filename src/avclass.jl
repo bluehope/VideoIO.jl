@@ -229,6 +229,7 @@ function FormatContext()
     ptr = avformat_alloc_context()
     ptr == C_NULL && throw(ErrorException("Unable to allocate FormatContext (out of memory"))
 
+    av_opt_set_defaults(ptr)
     fc = FormatContext([ptr])
     finalizer(fc, free)
     fc
