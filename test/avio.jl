@@ -58,7 +58,6 @@ end
 
 println(STDERR, "Testing IO reading...")
 for name in VideoIO.TestVideos.names()
-    @osx_only startswith(name, "crescent") && continue
     # TODO: fix me?
     (startswith(name, "ladybird") || startswith(name, "NPS")) && continue
 
@@ -67,7 +66,8 @@ for name in VideoIO.TestVideos.names()
     first_frame = imread(first_frame_file) # comment line when creating png files
 
     filename = joinpath(videodir, name)
-    v = VideoIO.openvideo(open(filename))
+    f = open(filename)
+    v = VideoIO.openvideo(f)
 
     img = read(v, Image)
 
@@ -78,18 +78,22 @@ for name in VideoIO.TestVideos.names()
 
     #imwrite(img, first_frame_file)        # uncomment line when creating png files
 
-    @test img == first_frame               # comment line when creating png files
+    @osx_only if !startswith(name, "crescent")
+        @test img == first_frame               # comment line when creating png files
+    end
+    @windows_only @test img == first_frame               # comment line when creating png files
+    @linux_only   @test img == first_frame               # comment line when creating png files
 
     while !eof(v)
         read!(v, img)
     end
 
     close(v)
+    close(f)
 end
 
 VideoIO.testvideo("ladybird") # coverage testing
 @test_throws ErrorException VideoIO.testvideo("rickroll")
 @test_throws ErrorException VideoIO.testvideo("")
-
 
 #VideoIO.TestVideos.remove_all()

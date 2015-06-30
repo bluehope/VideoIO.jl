@@ -237,8 +237,10 @@ end
 
 function free(c::FormatContext)
     Base.sigatomic_begin()
-    is_allocated(c) && avformat_close_input(c.pptr)
-    c[] = C_NULL
+    if is_allocated(c)
+        avformat_free_context(c[])
+        c[] = C_NULL
+    end
     Base.sigatomic_end()
 end
 

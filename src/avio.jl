@@ -291,7 +291,7 @@ function _openvideo(avin::MediaInput, io::IO, input_format=C_NULL)
     av_setfield!(avin.format_context[], :pb, avin.iocontext[])
 
     # "Open" the input
-    if avformat_open_input(avin.format_context, C_NULL, input_format, C_NULL) != 0
+    if avformat_open_input(avin.format_context, "dummy", input_format, C_NULL) != 0
         error("Unable to open input")
     end
 
@@ -633,6 +633,10 @@ function Base.close(avin::MediaInput)
     end
     # Fix for segmentation fault issue #44
     empty!(avin.listening)
+
+    Base.sigatomic_begin()
+    avformat_close_input(avin.format_context.pptr)
+    Base.sigatomic_end()
 
     free(avin.format_context)
     free(avin.iocontext)
