@@ -1,7 +1,7 @@
 # AVIO
 
-#import Base: read, read!, show, close, eof, isopen
-import Base: read, read!, show, eof, isopen
+#import Base: read, read!, show, close, eof, isopen, seekstart
+import Base: read, read!, show, eof, isopen, seekstart
 
 export read, read!, pump, openvideo, opencamera, playvideo, viewcam, play
 
@@ -285,11 +285,13 @@ function _openvideo(avin::MediaInput, io::IO, input_format=C_NULL)
     #av_opt_set(avin.format_context[], "probesize", "100000000", 0)
     #av_opt_set(avin.format_context[], "analyzeduration", "1000000", 0)
 
-    avin.iocontext = IOContext(avin.avio_ctx_buffer_size, 0, pointer_from_objref(avin),
-                               read_packet, C_NULL, C_NULL)
+    iocontext = IOContext(avin.avio_ctx_buffer_size, 0, pointer_from_objref(avin),
+                          read_packet, C_NULL, C_NULL, false)
 
     # pFormatContext->pb = pAVIOContext
-    av_setfield!(avin.format_context[], :pb, avin.iocontext[])
+    av_setfield!(avin.format_context[], :pb, iocontext[])
+
+    # TODO: release this when releasing the format context?
 
     # "Open" the input
     if avformat_open_input(avin.format_context, C_NULL, input_format, C_NULL) != 0
@@ -559,6 +561,40 @@ have_frame(r::StreamContext) = !isempty(r.frame_queue) || have_decoded_frame(r)
 have_frame(avin::MediaInput) = any([have_frame(avin.stream_contexts[i+1]) for i in avin.listening])
 
 reset_frame_flag!(r) = (r.aFrameFinished[1] = 0)
+
+function seekstart(s::VideoReader, video_stream=1)
+    !isopen(s) && throw(ErrorException("Video input stream is not open!"))
+
+    pCodecContext = s.pVideoCodecContext # AVCodecContext
+
+    seekstart(s.avin, video_stream)
+    avcodec_flush_buffers(pCodecContext)
+
+    return s
+end
+
+function seekstart{T<:String}(avin::MediaInput{T}, video_stream = 1)
+    # AVFormatContext
+    fc = avin.format_context
+
+    # Get stream information
+    stream_info = avin.video_info[video_stream]
+    seek_stream_index = stream_info.stream_index0
+    stream = stream_info.stream
+    first_dts = stream.first_dts
+
+    # Seek
+    ret = avformat_seek_file(fc[], seek_stream_index, first_dts, first_dts, first_dts, AVSEEK_FLAG_BACKWARD)
+
+    ret < 0 && throw(ErrorException("Could not seek to start of stream"))
+
+    return avin
+end
+
+## This doesn't work...
+#seekstart{T<:IO}(avin::MediaInput{T}, video_stream = 1) = seekstart(avin.io)
+seekstart{T<:IO}(avin::MediaInput{T}, video_stream = 1) = throw(ErrorException("Sorry, Seeking is not supported for IO streams"))
+
 
 function eof(avin::MediaInput)
     !isopen(avin) && return true

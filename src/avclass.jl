@@ -247,7 +247,7 @@ typealias IOContext PPtr{AVIOContext}
 
 IOContext() = IOContext(Ptr{AVIOContext}[C_NULL])
 
-function IOContext(bufsize::Integer, write_flag::Integer, opaque_ptr::Ptr, read_packet, write_packet, seek)
+function IOContext(bufsize::Integer, write_flag::Integer, opaque_ptr::Ptr, read_packet, write_packet, seek, finalize::Bool = true)
     pBuffer = av_malloc(bufsize)
 
     ptr = avio_alloc_context(pBuffer, bufsize, write_flag, opaque_ptr, read_packet, write_packet, seek)
@@ -258,7 +258,7 @@ function IOContext(bufsize::Integer, write_flag::Integer, opaque_ptr::Ptr, read_
     end
 
     ioc = IOContext([ptr])
-    finalizer(ioc, free)
+    finalize && finalizer(ioc, free)
     ioc
 end
 

@@ -42,6 +42,17 @@ for name in VideoIO.TestVideos.names()
         read!(v, img)
     end
 
+    # read first frames again, and compare
+    seekstart(v)
+
+    read!(v, img)
+
+    while notblank(img)
+        read!(v, img)
+    end
+
+    @test img == first_frame
+
     close(f) # closes v too
 end
 
