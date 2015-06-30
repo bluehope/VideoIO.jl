@@ -4,33 +4,6 @@ using Compat
 
 # Set the value of a field of a pointer
 # Equivalent to s->name = value
-function av_setfield!{T}(s::Ptr{T}, name::Symbol, value)
-    field = findfirst(fieldnames(T), name)
-    byteoffset = fieldoffsets(T)[field]
-    S = T.types[field]
-
-    p = convert(Ptr{S}, s+byteoffset)
-    a = pointer_to_array(p,1)
-    a[1] = convert(S, value)
-end
-
-function av_getfield{T}(s::Ptr{T}, name::Symbol)
-    field = findfirst(fieldnames(T), name)
-    byteoffset = fieldoffsets(T)[field]
-    S = T.types[field]
-
-    p = convert(Ptr{S}, s+byteoffset)
-    a = pointer_to_array(p,1)
-    return a[1]
-end
-
-function av_pointer_to_field{T}(s::Ptr{T}, name::Symbol)
-    field = findfirst(fieldnames(T), name)
-    byteoffset = fieldoffsets(T)[field]
-    return s + byteoffset
-end
-
-av_pointer_to_field(s::Array, name::Symbol) = av_pointer_to_field(pointer(s), name)
 
 function open_stdout_stderr(cmd::Cmd)
     out = Base.Pipe(C_NULL)
@@ -56,4 +29,15 @@ end
 function readall_stdout_stderr(cmd::Cmd)
     (out, err, proc) = open_stdout_stderr(cmd)
     return (readall(out), readall(err))
+end
+
+macro sigatomic(code)
+    quote
+        try
+            Base.sigatomic_begin()
+            $code
+        finally
+            Base.sigatomic_end()
+        end
+    end
 end

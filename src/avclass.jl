@@ -22,58 +22,18 @@ av_opt_type2julia = @compat Dict{UInt32, DataType}(AVUtil.AV_OPT_TYPE_FLAGS => U
                                                    )
 
 
-##
-
-@doc doc"""
-   Wrapping a pointer to a pointer
-
-   This is a common form for storing ffmpeg/libav objects, and creating a class
-   allows for convenient creation, cleanup, and dispatch on the objects.
-
-""" ->
-type PPtr{T}
-    pptr::Vector{Ptr{T}}
-
-    PPtr() = new([reinterpret(Ptr{T}, C_NULL)])
-    PPtr(p) = new(p)
-end
-
-Base.getindex(c::PPtr) = c.pptr[1]
-Base.setindex!(c::PPtr, x) = (c.pptr[1] = x)
-if VERSION < v"0.4.0-"
-    Base.convert{T}(::Type{Ptr{T}}, c::PPtr{T}) = Base.convert(Ptr{Ptr{T}}, c[])
-    Base.convert{T}(::Type{Ptr{Ptr{T}}}, c::PPtr) = Base.convert(Ptr{Ptr{T}}, pointer(c.pptr))
-    Base.convert(::Type{Ptr{Void}}, c::PPtr) = Base.convert(Ptr{Void}, pointer(c.pptr))
-else
-    Base.convert{T}(::Type{Ptr{T}}, c::PPtr{T}) = Base.unsafe_convert(Ptr{Ptr{T}}, c[])
-    Base.convert{T}(::Type{Ptr{Ptr{T}}}, c::PPtr) = Base.unsafe_convert(Ptr{Ptr{T}}, pointer(c.pptr))
-    Base.convert(::Type{Ptr{Void}}, c::PPtr) = Base.unsafe_convert(Ptr{Void}, pointer(c.pptr))
-
-    Base.unsafe_convert{T}(::Type{Ptr{T}}, c::PPtr{T}) = Base.unsafe_convert(Ptr{Ptr{T}}, c[])
-    Base.unsafe_convert{T}(::Type{Ptr{Ptr{T}}}, c::PPtr) = Base.unsafe_convert(Ptr{Ptr{T}}, pointer(c.pptr))
-    Base.unsafe_convert(::Type{Ptr{Void}}, c::PPtr) = Base.unsafe_convert(Ptr{Void}, pointer(c.pptr))
-end
-
-@doc doc"""
-  Free the object referred to, and set the pointer to C_NULL
-
-  Uses av_free by default; should be overridden for specific wrapped types.
-""" ->
-function free(c::PPtr)
-    Base.sigatomic_begin()
-    av_freep(c)
-    Base.sigatomic_end()
-end
-
-is_allocated(p::PPtr) = (p[] != C_NULL)
-
-
 ############
 
 # getindex, get_opt
 
+function av_isoption{T<:AVUtil._AVClass}(x::Ptr{T}, s)
+    x == C_NULL && throw(ArgumentError("NULL pointer to $T"))
 
-function av_typeof{T<:AVUtil._AVClass}(x::Ptr{T}, s)
+    p_av_opt = av_opt_find(x, string(s), C_NULL, 0, 0)
+    return p_av_opt != C_NULL
+end
+
+function av_typeof_opt{T<:AVUtil._AVClass}(x::Ptr{T}, s)
     x == C_NULL && throw(ArgumentError("NULL pointer to $T"))
 
     p_av_opt = av_opt_find(x, string(s), C_NULL, 0, 0)
@@ -97,15 +57,17 @@ end
 
 get_opt_string(x::Ptr, s) = throw(ErrorException("$x must be a pointer to an AVClass enabled struct"))
 
-get_opt(x::Ptr, s, ::Type{Val}) = get_opt_string(x, s)
+get_opt{T}(x::Ptr, s, ::Type{Val{T}}) = get_opt_string(x, s)
 #get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_STRING}) = get_opt_string(x, s)
 #get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_SAMPLE_FMT}) = get_opt_string(x, s)
 #get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_PIXEL_FMT}) = get_opt_string(x, s)
 #get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_COLOR}) = get_opt_string(x, s)
 #get_opt(x::Ptr, s, Val{AVUtil.AV_OPT_TYPE_CHANNEL_LAYOUT}) = get_opt_string(x, s)
 
-function get_opt(x::Ptr, s, ::Type{Union(Val{AVUtil.AV_OPT_TYPE_RATIONAL},
-                                                 Val{AVUtil.AV_OPT_TYPE_VIDEO_RATE})})
+typealias AV_RATIONAL Union(Val{AVUtil.AV_OPT_TYPE_RATIONAL},
+                            Val{AVUtil.AV_OPT_TYPE_VIDEO_RATE})
+
+function get_opt{T<:AV_RATIONAL}(x::Ptr, s, ::Type{T})
     val = get_opt_string(x, s)
     num, den = [parse(Int32, x) for x in split(val, '/')]
     return num//den
@@ -123,11 +85,15 @@ function get_opt{T<:Real}(x::Ptr, s, ::Type{T})
 end
 
 
-function Base.getindex{T<:AVUtil._AVClass}(x::Ptr{T}, s)
+function Base.getindex{T<:AVUtil._AVClass}(x::Ptr{T}, s::String)
     x == C_NULL && throw(ArgumentError("NULL pointer to $T"))
 
+    if !av_isoption(x, s)
+        throw(ArgumentError("$s is not an option for type $T"))
+    end
+
     # First, get the enum type defined by ffmpeg/libav
-    av_type = av_typeof(x, s)
+    av_type = av_typeof_opt(x, s)
 
     # See if there's a corresponding julia type, to use for dispatch
     # (defined above)
@@ -138,7 +104,7 @@ function Base.getindex{T<:AVUtil._AVClass}(x::Ptr{T}, s)
     return get_opt(x, s, S)
 end
 
-Base.getindex{T<:AVUtil._AVClass}(x::PPtr{T}, s) = getindex(x[], s)
+Base.getindex{T<:AVUtil._AVClass}(x::PPtr{T}, s::String) = getindex(x[], s)
 
 ## setindex!, set_opt!
 
@@ -154,8 +120,7 @@ set_opt!(x::Ptr, v, s) = throw(ErrorException("$s must be a pointer to an AVClas
 set_opt!{T<:Real}(x::Ptr, v, s, ::Type{T}) = set_opt!(x, string(v), string(s))
 set_opt!{T<:Val}(x::Ptr, v, s, ::Type{T})  = set_opt!(x, string(v), string(s))
 
-function set_opt!(x::Ptr, v, s, ::Type{Union(Val{AVUtil.AV_OPT_TYPE_RATIONAL},
-                                                     Val{AVUtil.AV_OPT_TYPE_VIDEO_RATE})})
+function set_opt!{T<:AV_RATIONAL}(x::Ptr, v, s, ::Type{T})
     set_str = replace(string(v), "//", "/")
     return set_opt!(x, set_str, string(s))
 end
@@ -167,9 +132,15 @@ function set_opt!(x::Ptr, v, s, ::Type{Val{AVUtil.AV_OPT_TYPE_IMAGE_SIZE}})
 end
 
 
-function Base.setindex!{T<:AVUtil._AVClass}(x::Ptr{T}, v, s)
+function Base.setindex!{T<:AVUtil._AVClass}(x::Ptr{T}, v, s::String)
+    x == C_NULL && throw(ArgumentError("NULL pointer to $T"))
+
+    if !av_isoption(x, s)
+        throw(ArgumentError("$s is not an option for type $T"))
+    end
+
     # First, get the enum type defined by ffmpeg/libav
-    av_type = av_typeof(x, s)
+    av_type = av_typeof_opt(x, s)
 
     # See if there's a corresponding julia type, to use for dispatch
     # (defined above)
@@ -179,7 +150,7 @@ function Base.setindex!{T<:AVUtil._AVClass}(x::Ptr{T}, v, s)
     return set_opt!(x, v, s, S)
 end
 
-Base.setindex!{T<:AVUtil._AVClass}(x::PPtr{T}, v, s) = setindex!(x[], v, s)
+Base.setindex!{T<:AVUtil._AVClass}(x::PPtr{T}, v, s::String) = setindex!(x[], v, s)
 
 ##
 
@@ -205,80 +176,7 @@ end
 
 Base.keys{T<:AVUtil._AVClass}(x::PPtr{T}) = keys(x[])
 
-
-############
-
-typealias CBuffer PPtr{Void}
-
-CBuffer() = CBuffer([C_NULL])
-
-function CBuffer(sz::Integer)
-    ptr = av_malloc(sz)
-    ptr == C_NULL && throw(ErrorException("Unable to allocate buffer (out of memory"))
-
-    cb = CBuffer([ptr])
-    finalizer(cb, free)
-    cb
-end
-
-############
-
-typealias FormatContext PPtr{AVFormatContext}
-
-function FormatContext()
-    ptr = avformat_alloc_context()
-    ptr == C_NULL && throw(ErrorException("Unable to allocate FormatContext (out of memory"))
-
-    av_opt_set_defaults(ptr)
-    fc = FormatContext([ptr])
-    finalizer(fc, free)
-    fc
-end
-
-function free(c::FormatContext)
-    Base.sigatomic_begin()
-    if is_allocated(c)
-        avformat_free_context(c[])
-        c[] = C_NULL
-    end
-    Base.sigatomic_end()
-end
-
-############
-
-typealias IOContext PPtr{AVIOContext}
-
-IOContext() = IOContext(Ptr{AVIOContext}[C_NULL])
-
-function IOContext(bufsize::Integer, write_flag::Integer, opaque_ptr::Ptr, read_packet, write_packet, seek)
-    pBuffer = av_malloc(bufsize)
-
-    ptr = avio_alloc_context(pBuffer, bufsize, write_flag, opaque_ptr, read_packet, write_packet, seek)
-    if ptr == C_NULL
-        cbuf = CBuffer([pBuffer])
-        free(cbuf)
-        throw(ErrorException("Unable to allocate IOContext (out of memory"))
-    end
-
-    ioc = IOContext([ptr])
-    finalizer(ioc, free)
-    ioc
-end
-
-function free(c::IOContext)
-    Base.sigatomic_begin()
-    if is_allocated(c)
-        buf = [av_getfield(c[], :buffer)]
-        av_freep(pointer(buf))
-    end
-
-    av_freep(c)
-    Base.sigatomic_end()
-end
-
-#############
-
-#type AVStream
+#type AVOption
 
 function Base.show(io::IO, x::AVOption)
     println(io, "AVOption(", join([bytestring(x.name),
